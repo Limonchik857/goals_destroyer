@@ -1,0 +1,62 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Работа с командой — goal_destroyer{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>Работа с командой</h1>
+            <p class="page-desc">Инструменты для командного взаимодействия: встречи, голосования и обсуждения.</p>
+        </div>
+    </header>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title"><a href="{% url 'meetings:home' %}">Встречи</a></h2>
+        <p class="panel__desc">Создайте опрос, чтобы согласовать удобное время. Участники отмечают слоты, сервис находит пересечения.</p>
+        {% if polls %}
+            <ul class="people-list">
+                {% for poll in polls %}
+                    <li class="people-list__item">
+                        <a href="{% url 'meetings:admin' poll.admin_code %}">{{ poll.title }}</a>
+                        <span class="people-list__meta">{{ poll.get_status_display }} · {{ poll.created_at|date:"j E" }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <a href="{% url 'meetings:home' %}" class="btn btn--primary">+ Новый опрос</a>
+    </section>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title"><a href="{% url 'votes:home' %}">Голосования</a></h2>
+        <p class="panel__desc">Анонимная доска с карточками и голосованием точками. Соберите мнение команды за один раунд.</p>
+        {% if boards %}
+            <ul class="people-list">
+                {% for board in boards %}
+                    <li class="people-list__item">
+                        <a href="{% url 'votes:admin' board.admin_code %}">{{ board.title }}</a>
+                        <span class="people-list__meta">{{ board.get_phase_display }} · {{ board.created_at|date:"j E" }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <a href="{% url 'votes:home' %}" class="btn btn--primary">+ Новая доска</a>
+    </section>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title"><a href="{% url 'agenda:home' %}">Обсуждения</a></h2>
+        <p class="panel__desc">Общий список тем для разговора. Каждый добавляет, что хочет обсудить, необсуждённое переносится на следующую встречу.</p>
+        {% if meetings %}
+            <ul class="people-list">
+                {% for meeting in meetings %}
+                    <li class="people-list__item">
+                        <a href="{% url 'agenda:admin' meeting.admin_code %}">{{ meeting.title }}</a>
+                        <span class="people-list__meta">{{ meeting.get_phase_display }} · {{ meeting.created_at|date:"j E" }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <a href="{% url 'agenda:home' %}" class="btn btn--primary">+ Новое обсуждение</a>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Изменение записи{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:journal' %}" class="back">← Журнал</a>
+    <h1>Изменить запись</h1>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        <div class="field">
+            <label for="{{ form.text.id_for_label }}">Запись</label>
+            {{ form.text }}
+            {{ form.text.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.date.id_for_label }}">Дата</label>
+            {{ form.date }}
+            {{ form.date.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.project.id_for_label }}">Проект</label>
+            {{ form.project }}
+            {{ form.project.errors }}
+        </div>
+        <div class="form__actions">
+            <button type="submit" class="btn btn--primary">Сохранить изменения</button>
+            <a href="{% url 'tasks:journal' %}" class="btn btn--ghost">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

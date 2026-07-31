@@ -1,0 +1,134 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Статистика{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>Статистика</h1>
+            <p class="page-desc">Ваша продуктивность в цифрах: сколько выполнено, как менялся темп по неделям и какие отметки уже открыты.</p>
+        </div>
+    </header>
+
+    {# --- Сводные карточки --- #}
+    <div class="stats stats--row">
+        <div class="stat-card">
+            <span class="stat-card__value">{{ overview.total }}</span>
+            <span class="stat-card__label">Всего выполнено</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-card__value">{{ g.projects_done }}</span>
+            <span class="stat-card__label">Завершено проектов</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-card__value">{% if overview.on_time_share is not None %}{{ overview.on_time_share }}%{% else %}—{% endif %}</span>
+            <span class="stat-card__label">Закрыто в срок</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-card__value">{{ overview.this_week }}</span>
+            <span class="stat-card__label">За эту неделю (прошлая: {{ overview.last_week }})</span>
+        </div>
+    </div>
+
+    {# --- Тепловая карта года --- #}
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Год активности</h2>
+        <p class="panel__desc">Каждая клетка — один день; чем темнее, тем больше задач выполнено. Наведите курсор, чтобы увидеть дату и количество.</p>
+        <div class="heatmap-scroll">
+            <div class="heatmap">
+                {% for week in heatmap %}
+                    <div class="heatmap__col">
+                        <span class="heatmap__month">{{ week.label }}</span>
+                        {% for day in week.days %}
+                            {% if day %}
+                                <span class="heatmap__cell heatmap__cell--{{ day.level }}"
+                                      title="{{ day.date|date:'d.m.Y' }}: {{ day.count }} {{ day.count|pluralize_ru:'задача,задачи,задач' }}"></span>
+                            {% else %}
+                                <span class="heatmap__cell heatmap__cell--future"></span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="heatmap-legend">
+            <span>меньше</span>
+            <span class="heatmap__cell heatmap__cell--0"></span>
+            <span class="heatmap__cell heatmap__cell--1"></span>
+            <span class="heatmap__cell heatmap__cell--2"></span>
+            <span class="heatmap__cell heatmap__cell--3"></span>
+            <span class="heatmap__cell heatmap__cell--4"></span>
+            <span>больше</span>
+        </div>
+    </section>
+
+    {# --- Задачи по неделям --- #}
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Выполнено по неделям</h2>
+        <p class="panel__desc">Последние 12 недель. Текущая неделя выделена цветом.</p>
+        <div class="chart">
+            {% for bar in chart %}
+                <div class="chart__col" title="Неделя {{ bar.start|date:'W' }} ({{ bar.start|date:'d.m' }} – {{ bar.end|date:'d.m' }}): {{ bar.count }} {{ bar.count|pluralize_ru:'задача,задачи,задач' }}">
+                    <span class="chart__count">{{ bar.count|default:"" }}</span>
+                    <div class="chart__bar-track">
+                        <div class="chart__bar{% if bar.is_current %} chart__bar--current{% endif %}"
+                             style="height: {{ bar.height }}%"></div>
+                    </div>
+                    <span class="chart__label">{% if bar.is_current %}эта{% else %}нед. {{ bar.start|date:"W" }}{% endif %}</span>
+                </div>
+            {% endfor %}
+        </div>
+        <div class="stats-facts">
+            {% if overview.best_weekday %}
+                <span>Самый продуктивный день — <strong>{{ overview.best_weekday }}</strong></span>
+            {% endif %}
+            {% if overview.average_lifetime %}
+                <span>Задача живёт в среднем <strong>{{ overview.average_lifetime }}</strong></span>
+            {% endif %}
+        </div>
+    </section>
+
+    {# --- Журнал достижений --- #}
+    <section class="panel panel--pad">
+        <div class="notes-section__head">
+            <h2 class="panel__title panel__title--block">Журнал достижений</h2>
+            <a href="{% url 'tasks:journal' %}" class="btn btn--ghost btn--sm">Открыть журнал</a>
+        </div>
+        <p class="panel__desc">1–2 строки в день о сделанном — а по кнопке «Собрать сводку» получается готовый отчёт для стендапа или ревью с экспортом в Markdown.</p>
+        <div class="stats stats--row">
+            <div class="stat-card">
+                <span class="stat-card__value">{{ journal_streak }}</span>
+                <span class="stat-card__label">Дней с записями подряд</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-card__value">{{ journal_week_count }}</span>
+                <span class="stat-card__label">Записей на этой неделе</span>
+            </div>
+        </div>
+    </section>
+
+    {# --- Достижения --- #}
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Достижения</h2>
+        <p class="panel__desc">Отметки за заметные результаты. Серые ещё не открыты — рядом видно, сколько осталось.</p>
+        <ul class="achievements">
+            {% for a in achievements %}
+                <li class="achievement{% if not a.earned %} achievement--locked{% endif %}">
+                    <span class="achievement__emoji">{{ a.emoji }}</span>
+                    <span class="achievement__body">
+                        <span class="achievement__title">{{ a.title }}</span>
+                        <span class="achievement__desc">{{ a.description }}</span>
+                    </span>
+                    {% if a.earned %}
+                        <span class="achievement__state achievement__state--earned">✓</span>
+                    {% elif a.progress %}
+                        <span class="achievement__state">{{ a.progress }}</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

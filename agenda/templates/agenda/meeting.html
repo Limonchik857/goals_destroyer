@@ -1,0 +1,107 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}{{ meeting.title }} — обсуждение{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>{{ meeting.title }}</h1>
+            <p class="page-desc">Обсуждение · организатор: {{ meeting.organizer }}</p>
+        </div>
+        {% if meeting.is_collect %}
+            <span class="phase-badge phase-badge--collect">Сбор тем</span>
+        {% else %}
+            <span class="phase-badge phase-badge--done">Завершено</span>
+        {% endif %}
+    </header>
+
+    {% if meeting.is_collect %}
+        <section class="panel panel--pad">
+            <form method="post" action="{% url 'agenda:topic_add' meeting.share_code %}" class="journal-add">
+                {% csrf_token %}
+                {{ topic_form.text }}
+                <button type="submit" class="btn btn--primary">+ Добавить тему</button>
+            </form>
+            {% if topic_form.errors %}
+                <ul class="form__errors">{% for e in topic_form.text.errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    {# --- Список тем (карточки как задачи) --- #}
+    <section class="panel">
+        <header class="panel__head panel__head--center">
+            <div class="panel__head-center">
+                <h2 class="panel__title topics-title">Темы для обсуждения</h2>
+                <p class="panel__subtitle">{{ topics|length }} {{ topics|length|pluralize_ru:"тема,темы,тем" }}</p>
+            </div>
+        </header>
+        <ul class="grid">
+            {% for topic in topics %}
+                {% include "agenda/_topic_card.html" %}
+            {% empty %}
+                <li class="empty">Пока нет тем. {% if meeting.is_collect %}Добавьте первую выше.{% endif %}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    {# --- Обсуждённые --- #}
+    {% if discussed %}
+        <section class="panel">
+            <header class="panel__head">
+                <div>
+                    <h2 class="panel__title">Обсудили</h2>
+                    <p class="panel__subtitle">{{ discussed|length }} {{ discussed|length|pluralize_ru:"тема,темы,тем" }}</p>
+                </div>
+            </header>
+            <ul class="grid">
+                {% for topic in discussed %}
+                    <li class="gcard is-done">
+                        <div class="gcard__top">
+                            <span class="check check--done">✓</span>
+                            <span class="gcard__title">{{ topic.text }}</span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
+    {# --- Ссылка для команды --- #}
+    <div class="share-box">
+        <h3>Ссылка для команды</h3>
+        <p class="share-box__hint">По ней участники добавляют темы и видят прогресс — без регистрации.</p>
+        <div class="copy-row">
+            <input type="text" id="share-link" class="copy-row__input" value="{{ share_url }}" readonly>
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="share-link">Копировать</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Подтверждение удаления своей темы.
+    document.querySelectorAll("[data-confirm='delete']").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            if (!confirm("Удалить эту тему?")) e.preventDefault();
+        });
+    });
+
+    // Кнопки «Копировать».
+    document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var input = document.getElementById(btn.dataset.copy);
+            if (!input) return;
+            input.select();
+            if (navigator.clipboard) navigator.clipboard.writeText(input.value);
+            else document.execCommand("copy");
+            var old = btn.textContent;
+            btn.textContent = "Скопировано!";
+            setTimeout(function () { btn.textContent = old; }, 1500);
+        });
+    });
+</script>
+{% endblock %}

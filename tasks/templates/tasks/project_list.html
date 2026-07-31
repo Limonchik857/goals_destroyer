@@ -1,0 +1,107 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Проекты{% endblock %}
+
+{% block content %}
+<div class="page">
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Проекты</h1>
+                <p class="panel__subtitle">
+                    {{ projects|length }} {{ projects|length|pluralize_ru:"активный проект,активных проекта,активных проектов" }}
+                </p>
+                <p class="panel__desc">Объединяйте связанные задачи в проекты с общим дедлайном — большая цель не развалится на мелочи. Галочка слева завершает проект целиком.</p>
+            </div>
+            <div class="panel__head-actions">
+                <button type="button" class="btn btn--ghost" id="open-template-dialog">Создать по шаблону</button>
+                <a href="{% url 'tasks:project_create' %}" class="btn btn--primary">+ Новый проект</a>
+            </div>
+        </header>
+
+        <ul class="grid">
+            {% for project in projects %}
+                <li class="gcard">
+                    <div class="gcard__top">
+                        <form method="get" action="{% url 'tasks:project_complete' project.pk %}" class="gcard__toggle">
+                            <button type="submit" class="check" aria-label="Завершить проект"
+                                    aria-pressed="false"></button>
+                        </form>
+                        <span class="gcard__title">{{ project.name }}</span>
+                        <div class="gcard__meta">
+                            {% if project.deadline %}
+                                <span class="deadline {% if project.is_overdue %}deadline--overdue{% endif %}">{{ project.deadline|smart_deadline }}</span>
+                            {% else %}
+                                <span class="deadline">Без дедлайна</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if project.description %}
+                        <p class="gcard__desc">{{ project.description }}</p>
+                    {% else %}
+                        <p class="gcard__desc gcard__desc--empty">Описания нет</p>
+                    {% endif %}
+                    {% if project.progress.total %}
+                        <div class="gcard__progress">
+                            <span class="pbar {% if project.progress.percent == 100 %}pbar--full{% endif %}">
+                                <span class="pbar__fill" style="width: {{ project.progress.percent }}%"></span>
+                            </span>
+                            <span class="pbar__label">{{ project.progress.done }}/{{ project.progress.total }}</span>
+                        </div>
+                    {% endif %}
+                    <div class="gcard__footer">
+                        <span class="tag">{{ project.progress.total }} {{ project.progress.total|pluralize_ru:"задача,задачи,задач" }}</span>
+                        <span class="gcard__actions">
+                            <a href="{% url 'tasks:project_edit' project.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+                        </span>
+                    </div>
+                </li>
+            {% empty %}
+                <li class="empty">Активных проектов нет. Создайте первый.</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+
+<dialog class="tpl-dialog" id="template-dialog">
+    <form method="dialog" class="tpl-dialog__head">
+        <h2 class="tpl-dialog__title">Создать проект по шаблону</h2>
+        <a href="{% url 'tasks:template_create' %}" class="btn btn--ghost btn--sm">+ Создать шаблон</a>
+        <button type="submit" class="tpl-dialog__close" aria-label="Закрыть">×</button>
+    </form>
+    {% if templates %}
+        <ul class="tpl-dialog__list">
+            {% for template in templates %}
+                <li class="tpl-dialog__row">
+                    <a href="{% url 'tasks:project_create' %}?template={{ template.pk }}" class="tpl-dialog__item">
+                        <span class="tpl-dialog__name">{{ template.name }}</span>
+                        <span class="tpl-dialog__meta">
+                            {{ template.template_tasks.count }} {{ template.template_tasks.count|pluralize_ru:"шаг,шага,шагов" }}
+                            {% if template.description %} · {{ template.description|truncatewords:8 }}{% endif %}
+                        </span>
+                    </a>
+                    <a href="{% url 'tasks:template_edit' template.pk %}" class="tpl-dialog__edit">Изменить</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="tpl-dialog__empty">Шаблонов нет. Создайте первый — потом по нему можно будет создавать проекты.</p>
+    {% endif %}
+</dialog>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var btn = document.getElementById("open-template-dialog");
+        var dialog = document.getElementById("template-dialog");
+        if (!btn || !dialog) return;
+        btn.addEventListener("click", function () { dialog.showModal(); });
+        dialog.addEventListener("click", function (e) {
+            if (e.target === dialog) dialog.close();
+        });
+    })();
+</script>
+{% endblock %}

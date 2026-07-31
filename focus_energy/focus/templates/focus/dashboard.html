@@ -1,0 +1,116 @@
+{% extends 'focus/base.html' %}
+{% block title %}Главная — Фокус и энергия{% endblock %}
+{% block content %}
+{% if not daily_state %}
+<div class="welcome-card">
+  <h1>Как ты себя чувствуешь сегодня?</h1>
+  <p>Оцени энергию, концентрацию и доступное время,<br>чтобы получить рекомендацию.</p>
+  <a href="{% url 'focus:daily_state' %}" class="btn btn-primary btn-large">Оценить состояние</a>
+</div>
+{% else %}
+<div class="mode-card">
+  <h2 class="mode-title">{{ mode_title }}</h2>
+  <p class="mode-text">{{ mode_text }}</p>
+  <div class="stats-row">
+    <div class="stat">
+      <span class="stat-label">Энергия</span>
+      <span class="stat-value">{{ daily_state.energy }} из 5</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Концентрация</span>
+      <span class="stat-value">{{ daily_state.focus }} из 5</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Доступно</span>
+      <span class="stat-value">{{ daily_state.available_minutes }} минут</span>
+    </div>
+  </div>
+  <a href="{% url 'focus:daily_state' %}" class="btn btn-secondary">Изменить состояние</a>
+</div>
+{% endif %}
+
+{% if recommendations %}
+  {% with best=recommendations.best %}
+  {% if best %}
+  <section class="recommendation-section">
+    <h2 class="section-title">Лучше всего сейчас</h2>
+    <div class="task-card task-card-best">
+      <h3 class="task-title">{{ best.task.title }}</h3>
+      {% if best.task.description %}
+      <p class="task-desc">{{ best.task.description|truncatewords:30 }}</p>
+      {% endif %}
+      <div class="task-meta">
+        <span>Приоритет: {{ best.task.priority }}</span>
+        {% if best.task.deadline %}
+        <span>Срок: {{ best.task.deadline|date:"d.m.Y" }}</span>
+        {% endif %}
+        <span>~{{ best.task.estimated_minutes }} мин</span>
+        <span>Энергия: {{ best.task.energy_required }}</span>
+      </div>
+      <div class="reasons">
+        <p class="reasons-title">Почему эта задача?</p>
+        <ul class="reasons-list">
+          {% for reason in best.reasons %}
+          <li>{{ reason }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <form method="post" action="{% url 'focus:task_complete' pk=best.task.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Выполнить</button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+  {% endwith %}
+
+  {% if recommendations.other_good %}
+  <section class="recommendation-section">
+    <h2 class="section-title">Ещё подходящие задачи</h2>
+    <div class="task-cards">
+      {% for item in recommendations.other_good %}
+      <div class="task-card">
+        <h3 class="task-title">{{ item.task.title }}</h3>
+        <div class="task-meta">
+          <span>Приоритет: {{ item.task.priority }}</span>
+          <span>~{{ item.task.estimated_minutes }} мин</span>
+        </div>
+        <div class="task-actions">
+          <a href="{% url 'focus:task_detail' pk=item.task.pk %}" class="btn btn-small">Подробнее</a>
+          <form method="post" action="{% url 'focus:task_complete' pk=item.task.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-small btn-primary">Выполнить</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if recommendations.not_recommended %}
+  <section class="recommendation-section not-rec">
+    <h2 class="section-title">Сейчас лучше отложить</h2>
+    <div class="task-cards">
+      {% for item in recommendations.not_recommended %}
+      <div class="task-card task-card-muted">
+        <h3 class="task-title">{{ item.task.title }}</h3>
+        <ul class="reasons-list">
+          {% for reason in item.reasons %}
+          <li>{{ reason }}</li>
+          {% endfor %}
+        </ul>
+        <a href="{% url 'focus:task_detail' pk=item.task.pk %}" class="btn btn-small">Подробнее</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+{% elif daily_state %}
+<div class="empty-state">
+  <h2>На сегодня нет активных задач</h2>
+  <p>Можно добавить новую задачу или использовать время для отдыха, обучения или планирования.</p>
+  <a href="{% url 'focus:task_create' %}" class="btn btn-primary btn-large">Добавить задачу</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Задачи{% endblock %}
+
+{% block content %}
+<div class="page">
+    <nav class="subtabs">
+        <a href="{% url 'tasks:workspace' %}" class="subtabs__item is-active">Активные</a>
+        <a href="{% url 'tasks:overdue_tasks' %}" class="subtabs__item">Просроченные</a>
+    </nav>
+
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Активные задачи</h1>
+                <p class="panel__subtitle">
+                    {{ tasks|length }} {{ tasks|length|pluralize_ru:"задача,задачи,задач" }}
+                </p>
+                <p class="panel__desc">Создавайте задачи и отмечайте их галочкой по мере выполнения. Просроченные всегда поднимаются наверх, чтобы ничего не потерялось. Повторяющиеся задачи после выполнения сами создают следующую копию.</p>
+            </div>
+            <div class="panel__head-actions">
+                <a href="{% url 'tasks:task_create' %}?recurring=1" class="btn btn--ghost">+ Повторяющаяся задача</a>
+                <a href="{% url 'tasks:task_create' %}" class="btn btn--primary">+ Новая задача</a>
+            </div>
+        </header>
+
+        <ul class="grid">
+            {% for task in tasks %}
+                {% include "tasks/_task_card.html" %}
+            {% empty %}
+                <li class="empty">Активных задач нет</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

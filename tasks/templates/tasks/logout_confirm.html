@@ -1,0 +1,23 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Выход{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:home' %}" class="back">← На главную</a>
+    <div class="confirm-card">
+        <h1>Выйти из аккаунта?</h1>
+        <p>
+            Вы действительно хотите выйти из аккаунта <strong>{{ user.email }}</strong>?
+            Для продолжения работы потребуется снова войти.
+        </p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form__actions">
+                <button type="submit" class="btn btn--danger">Выйти</button>
+                <a href="{% url 'tasks:home' %}" class="btn btn--ghost">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

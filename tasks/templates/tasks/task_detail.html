@@ -1,0 +1,187 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}{{ task.name }}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:workspace' %}" class="back">← К задачам</a>
+
+    <article class="detail-card">
+        <header class="detail-card__head">
+            <h1>{{ task.name }}</h1>
+            <span class="badge {% if task.is_done %}badge--done{% else %}badge--todo{% endif %}">
+                {{ task.get_status_display }}
+            </span>
+        </header>
+
+        <dl class="meta">
+            <div class="meta__row">
+                <dt>Проект</dt>
+                <dd>
+                    {% if task.project %}
+                        <a href="{% url 'tasks:project_detail' task.project_id %}">{{ task.project.name }}</a>
+                    {% else %}
+                        <span class="is-muted">Без проекта</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="meta__row">
+                <dt>Приоритет</dt>
+                <dd>
+                    <span class="priority priority--{{ task.priority }}">{{ task.get_priority_display }}</span>
+                </dd>
+            </div>
+            <div class="meta__row">
+                <dt>Сложность</dt>
+                <dd>{{ task.get_difficulty_display }}</dd>
+            </div>
+            <div class="meta__row">
+                <dt>Длительность</dt>
+                <dd>{{ task.get_estimated_duration_display }}</dd>
+            </div>
+            <div class="meta__row">
+                <dt>Повторение</dt>
+                <dd>{{ task.recurrence_display }}</dd>
+            </div>
+            <div class="meta__row">
+                <dt>Дедлайн</dt>
+                <dd>
+                    {% if task.deadline %}
+                        <span class="deadline {% if task.is_overdue %}deadline--overdue{% endif %}">
+                            {{ task.deadline|smart_deadline }}{% if task.is_overdue %} · просрочено{% endif %}
+                        </span>
+                    {% else %}
+                        <span class="is-muted">—</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="meta__row">
+                <dt>Дата создания</dt>
+                <dd>{{ task.created_at|date:"d.m.Y H:i" }}</dd>
+            </div>
+        </dl>
+
+        <section class="detail-card__desc">
+            {% if task.description %}
+                {{ task.description|linebreaksbr }}
+            {% else %}
+                <span class="is-muted">Описание не добавлено</span>
+            {% endif %}
+        </section>
+
+        <section class="detail-card__files">
+            {% with attachments=task.files.all %}
+                <h3>
+                    Прикреплённые файлы
+                    {% if attachments %}<span class="is-muted">· {{ attachments|length }}</span>{% endif %}
+                </h3>
+                {% if attachments %}
+                    <ul class="file-list">
+                        {% for f in attachments %}
+                            <li class="file-list__item">
+                                <a href="{% url 'tasks:task_file_download' task.pk f.pk %}" class="file-list__link">{{ f.original_name }}</a>
+                                <span class="file-list__meta">{{ f.size_display }} · {{ f.uploaded_at|date:"d.m.Y H:i" }}</span>
+                                <form method="post" action="{% url 'tasks:task_file_delete' task.pk f.pk %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="file-list__del"
+                                            title="Открепить файл"
+                                            aria-label="Открепить файл {{ f.original_name }}">×</button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="is-muted">Файлы не прикреплены.</p>
+                {% endif %}
+                <a href="{% url 'tasks:task_edit' task.pk %}" class="btn btn--ghost btn--sm">Прикрепить файлы</a>
+
+                {% for f in attachments %}
+                    {% if f.has_suggestions %}
+                        <div class="suggestions">
+                            <h4 class="suggestions__title">Найдено в «{{ f.original_name }}»</h4>
+
+                            {% if f.suggested_dates %}
+                                <div class="suggestions__group">
+                                    <span class="suggestions__label">Даты — нажмите, чтобы поставить дедлайн:</span>
+                                    <div class="suggestions__dates">
+                                        {% for d in f.suggested_dates %}
+                                            <form method="post" action="{% url 'tasks:task_file_apply_deadline' task.pk f.pk %}" class="inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="date" value="{{ d|date:'Y-m-d' }}">
+                                                <button type="submit" class="chip"
+                                                        title="Поставить дедлайн {{ d|date:'d.m.Y' }}">
+                                                    {{ d|date:"d.m.Y" }}
+                                                </button>
+                                            </form>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if f.suggested_items %}
+                                <form method="post" action="{% url 'tasks:task_file_create_tasks' task.pk f.pk %}" class="suggestions__group">
+                                    {% csrf_token %}
+                                    <span class="suggestions__label">
+                                        Пункты списка — отметьте нужные и создайте из них задачи{% if task.project %} в проекте «{{ task.project.name }}»{% endif %}:
+                                    </span>
+                                    <ul class="suggestions__items">
+                                        {% for item in f.suggested_items %}
+                                            <li>
+                                                <label class="suggestions__item">
+                                                    <input type="checkbox" name="items" value="{{ forloop.counter0 }}" checked>
+                                                    <span>{{ item }}</span>
+                                                </label>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                    <button type="submit" class="btn btn--primary btn--sm">Создать задачи</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            {% endwith %}
+        </section>
+
+        <section class="share-box">
+            <h3>Передать шаг исполнителю</h3>
+            {% if task.share_code %}
+                <p class="share-box__hint">Человек по этой ссылке увидит задачу и сможет отметить её выполненной — без регистрации. Файлы по ссылке не видны.</p>
+                <div class="copy-row">
+                    <input type="text" readonly value="{{ share_url }}" id="share-url" class="copy-row__input">
+                    <button type="button" class="btn btn--ghost btn--sm" data-copy="share-url">Скопировать</button>
+                </div>
+                <div class="share-box__actions">
+                    <form method="post" action="{% url 'tasks:task_share_enable' task.pk %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--ghost btn--sm" title="Старая ссылка перестанет работать">Перевыпустить</button>
+                    </form>
+                    <form method="post" action="{% url 'tasks:task_share_disable' task.pk %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--danger btn--sm">Отключить ссылку</button>
+                    </form>
+                </div>
+            {% else %}
+                <p class="share-box__hint">Создайте публичную ссылку и отправьте её исполнителю: он откроет шаг без регистрации и отметит выполнение, а вы увидите прогресс.</p>
+                <form method="post" action="{% url 'tasks:task_share_enable' task.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--ghost btn--sm">Создать ссылку</button>
+                </form>
+            {% endif %}
+        </section>
+
+        <div class="detail-card__actions">
+            <form method="post" action="{% url 'tasks:task_toggle' task.pk %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'tasks:task_detail' task.pk %}">
+                <button type="submit" class="btn btn--ghost">
+                    {% if task.is_done %}Отметить невыполненной{% else %}Отметить выполненной{% endif %}
+                </button>
+            </form>
+            <a href="{% url 'tasks:task_edit' task.pk %}" class="btn btn--ghost">Редактировать</a>
+            <a href="{% url 'tasks:task_delete' task.pk %}" class="btn btn--danger">Удалить</a>
+        </div>
+    </article>
+</div>
+{% endblock %}

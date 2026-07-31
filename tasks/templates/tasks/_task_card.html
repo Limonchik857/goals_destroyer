@@ -1,0 +1,41 @@
+{# Общая карточка задачи. Переменные: task, hide_project (необязательно). #}
+{% load task_tags %}
+<li class="gcard {% if task.is_done %}is-done{% endif %}">
+    <div class="gcard__top">
+        <form method="post" action="{% url 'tasks:task_toggle' task.pk %}" class="gcard__toggle">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="check" aria-label="Переключить статус"
+                    aria-pressed="{{ task.is_done|yesno:'true,false' }}"></button>
+        </form>
+        <span class="gcard__title">{{ task.name }}</span>
+        <div class="gcard__meta">
+            {% if task.deadline %}
+                <span class="deadline {% if task.is_overdue %}deadline--overdue{% endif %}">{{ task.deadline|smart_deadline }}{% if task.is_overdue %} · просрочено{% endif %}</span>
+            {% else %}
+                <span class="deadline">Без дедлайна</span>
+            {% endif %}
+            <span class="priority priority--{{ task.priority }}">{{ task.get_priority_display }}</span>
+        </div>
+    </div>
+    {% if task.description %}
+        <p class="gcard__desc">{{ task.description }}</p>
+    {% else %}
+        <p class="gcard__desc gcard__desc--empty">Описания нет</p>
+    {% endif %}
+    {% if task.project and not hide_project %}
+        <div class="gcard__footer">
+            <a href="{% url 'tasks:project_detail' task.project_id %}" class="tag tag--labeled">Проект: {{ task.project.name }}</a>
+            <span class="gcard__actions">
+                <a href="{% url 'tasks:task_edit' task.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+            </span>
+        </div>
+    {% else %}
+        <div class="gcard__footer">
+            <span></span>
+            <span class="gcard__actions">
+                <a href="{% url 'tasks:task_edit' task.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+            </span>
+        </div>
+    {% endif %}
+</li>

@@ -1,0 +1,42 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Заметки{% endblock %}
+
+{% block content %}
+<div class="page">
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Заметки</h1>
+                <p class="panel__subtitle">
+                    {{ notes|length }} {{ notes|length|pluralize_ru:"заметка,заметки,заметок" }}
+                </p>
+                <p class="panel__desc">Быстрые записи без дедлайнов и статусов: идеи, ссылки, телефоны — всё, что жалко потерять, но что ещё не задача.</p>
+            </div>
+            <a href="{% url 'tasks:note_create' %}" class="btn btn--primary">+ Новая заметка</a>
+        </header>
+
+        <ul class="grid">
+            {% for note in notes %}
+                <li class="gcard">
+                    <div class="gcard__top">
+                        <span class="gcard__title">{{ note.title }}</span>
+                    </div>
+                    {% if note.text %}
+                        <p class="gcard__desc">{{ note.text }}</p>
+                    {% endif %}
+                    <div class="gcard__footer">
+                        <span class="gcard__actions">
+                            <a href="{% url 'tasks:note_edit' note.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+                            <a href="{% url 'tasks:note_delete' note.pk %}" class="btn btn--danger btn--sm">Удалить</a>
+                        </span>
+                    </div>
+                </li>
+            {% empty %}
+                <li class="empty">Пока нет заметок. Создайте первую.</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

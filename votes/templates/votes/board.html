@@ -1,0 +1,151 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ board.title }} — голосование{% endblock %}
+
+{% block content %}
+<div class="page page--wide">
+    <header class="page-head">
+        <div>
+            <h1>{{ board.title }}</h1>
+            <p class="page-desc">
+                Голосование · организатор: {{ board.organizer }}
+                {% if board.description %}· {{ board.description }}{% endif %}
+            </p>
+        </div>
+        <div class="board-status">
+            <span class="phase-badge phase-badge--{{ board.phase }}">{{ board.get_phase_display }}</span>
+            {% if timer_left is not None %}
+                <span class="board-timer" data-timer-left="{{ timer_left }}">
+                    {{ timer_left|floatformat:0 }} сек
+                </span>
+            {% endif %}
+        </div>
+    </header>
+
+    {% if board.is_collect %}
+        <p class="board-hint">Накидывайте карточки в колонки — всё анонимно. Когда все соберутся, организатор включит голосование.</p>
+    {% elif board.is_voting %}
+        <p class="board-hint">
+            Голосование точками: ставьте на самое важное.
+            {% if votes_left > 0 %}
+                У вас осталось <strong>{{ votes_left }}</strong> из {{ board.votes_per_person }}.
+            {% else %}
+                Точки закончились — можно переставить, сняв с другой карточки.
+            {% endif %}
+        </p>
+    {% else %}
+        <p class="board-hint">Голосование завершено. Карточки отсортированы по голосам — сверху самое важное для команды.</p>
+    {% endif %}
+
+    <div class="board-cols">
+        {% for column in columns %}
+            <section class="bcol bcol--{{ column.key }}">
+                <h2 class="bcol__title">
+                    {{ column.title }}
+                    <span class="bcol__count">{{ column.cards|length }}</span>
+                </h2>
+
+                <ul class="bcards">
+                    {% for card in column.cards %}
+                        <li class="bcard">
+                            <p class="bcard__text">{{ card.text }}</p>
+                            <div class="bcard__foot">
+                                {% if board.is_voting %}
+                                    <form method="post" action="{% url 'votes:vote_toggle' board.share_code card.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit"
+                                                class="dot-vote{% if card.voted %} dot-vote--active{% endif %}"
+                                                {% if not card.voted and votes_left == 0 %}disabled{% endif %}>
+                                            ● {{ card.dots }}
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="dot-vote dot-vote--static">● {{ card.dots }}</span>
+                                {% endif %}
+                                {% if board.is_collect and card.mine %}
+                                    <form method="post" action="{% url 'votes:card_delete' board.share_code card.pk %}" class="inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="bcard__del" title="Удалить мою карточку">×</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="bcol-empty">Пока пусто</li>
+                    {% endfor %}
+                </ul>
+
+                {% if board.is_collect %}
+                    <form method="post" action="{% url 'votes:card_add' board.share_code %}" class="bcard-add" data-dirty-watch>
+                        {% csrf_token %}
+                        <input type="hidden" name="column" value="{{ column.key }}">
+                        {{ card_form.text }}
+                        <button type="submit" class="btn btn--ghost btn--sm">+ Карточка</button>
+                    </form>
+                {% endif %}
+            </section>
+        {% endfor %}
+    </div>
+
+    <div class="share-box">
+        <h3>Ссылка для команды</h3>
+        <p class="share-box__hint">По ней участники добавляют карточки и голосуют — без регистрации.</p>
+        <div class="copy-row">
+            <input type="text" id="share-link" class="copy-row__input" value="{{ share_url }}" readonly>
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="share-link">Копировать</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Кнопка «Копировать».
+    document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var input = document.getElementById(btn.dataset.copy);
+            if (!input) return;
+            input.select();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(input.value);
+            } else {
+                document.execCommand("copy");
+            }
+            var old = btn.textContent;
+            btn.textContent = "Скопировано!";
+            setTimeout(function () { btn.textContent = old; }, 1500);
+        });
+    });
+
+    // Обратный отсчёт таймера фазы.
+    (function () {
+        var el = document.querySelector("[data-timer-left]");
+        if (!el) return;
+        var left = parseInt(el.dataset.timerLeft, 10);
+        function tick() {
+            var m = Math.floor(left / 60), s = left % 60;
+            el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+            if (left <= 0) {
+                el.classList.add("board-timer--over");
+                el.textContent = "время вышло";
+                return;
+            }
+            left -= 1;
+            setTimeout(tick, 1000);
+        }
+        tick();
+    })();
+
+    // Мягкое автообновление доски: перезагрузка каждые 15 с, но только
+    // если участник не печатает карточку — иначе стёрлся бы ввод.
+    (function () {
+        var dirty = false;
+        document.querySelectorAll("[data-dirty-watch] textarea").forEach(function (ta) {
+            ta.addEventListener("input", function () { dirty = ta.value.trim().length > 0; });
+        });
+        setInterval(function () {
+            if (!dirty) location.reload();
+        }, 15000);
+    })();
+</script>
+{% endblock %}

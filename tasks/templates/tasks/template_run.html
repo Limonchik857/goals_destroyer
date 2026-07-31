@@ -1,0 +1,53 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Запуск: {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:template_detail' template.pk %}" class="back">← К шаблону</a>
+
+    <section class="panel panel--pad">
+        <h1 class="panel__title panel__title--block">Запустить «{{ template.name }}»</h1>
+        <p class="panel__desc">Из шаблона будет создан отдельный проект-запуск со своим прогрессом. Шаги, не нужные в этот раз, снимите галочкой — сам шаблон не изменится.</p>
+
+        <form method="post" novalidate class="form form--plain">
+            {% csrf_token %}
+
+            <div class="field">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                {{ form.name.errors }}
+            </div>
+
+            <div class="field">
+                <label for="{{ form.deadline.id_for_label }}">{{ form.deadline.label }}</label>
+                {{ form.deadline }}
+                {{ form.deadline.errors }}
+            </div>
+
+            <div class="field">
+                <label>{{ form.steps.label }}</label>
+                {{ form.steps.errors }}
+                <ul class="run-steps">
+                    {% for checkbox in form.steps %}
+                        <li class="run-steps__item">
+                            <label class="run-steps__label">
+                                {{ checkbox.tag }}
+                                <span>{{ checkbox.choice_label }}</span>
+                            </label>
+                        </li>
+                    {% empty %}
+                        <li class="empty">В шаблоне нет шагов — сначала добавьте их на странице шаблона.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="form__actions">
+                <button type="submit" class="btn btn--primary">▶ Запустить процесс</button>
+                <a href="{% url 'tasks:template_detail' template.pk %}" class="btn btn--ghost">Отмена</a>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}

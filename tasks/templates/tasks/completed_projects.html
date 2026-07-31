@@ -1,0 +1,61 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Завершённые проекты{% endblock %}
+
+{% block content %}
+<div class="page">
+    <nav class="subtabs">
+        <a href="{% url 'tasks:completed_tasks' %}" class="subtabs__item">Задачи</a>
+        <a href="{% url 'tasks:completed_projects' %}" class="subtabs__item is-active">Проекты</a>
+    </nav>
+
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Завершённые проекты</h1>
+                <p class="panel__subtitle">
+                    {{ projects|length }} {{ projects|length|pluralize_ru:"проект,проекта,проектов" }}
+                </p>
+                <p class="panel__desc">Доведённые до конца проекты. Любой можно вернуть в активные, если работа возобновилась.</p>
+            </div>
+        </header>
+
+        <ul class="grid">
+            {% for project in projects %}
+                <li class="gcard is-done">
+                    <div class="gcard__top">
+                        <form method="post" action="{% url 'tasks:project_reopen' project.pk %}" class="gcard__toggle">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button type="submit" class="check" aria-label="Вернуть в активные"
+                                    aria-pressed="true"></button>
+                        </form>
+                        <a href="{% url 'tasks:project_detail' project.pk %}" class="gcard__title">{{ project.name }}</a>
+                        <div class="gcard__meta">
+                            {% if project.deadline %}
+                                <span class="deadline">{{ project.deadline|smart_deadline }}</span>
+                            {% else %}
+                                <span class="deadline">Без дедлайна</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if project.description %}
+                        <p class="gcard__desc">{{ project.description }}</p>
+                    {% else %}
+                        <p class="gcard__desc gcard__desc--empty">Описания нет</p>
+                    {% endif %}
+                    <div class="gcard__footer">
+                        <span class="tag">{{ project.tasks.count }} {{ project.tasks.count|pluralize_ru:"задача,задачи,задач" }}</span>
+                        <span class="gcard__actions">
+                            <a href="{% url 'tasks:project_delete' project.pk %}" class="btn btn--danger btn--sm">Удалить</a>
+                        </span>
+                    </div>
+                </li>
+            {% empty %}
+                <li class="empty">Завершённых проектов нет</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

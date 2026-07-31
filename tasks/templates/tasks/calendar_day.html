@@ -1,0 +1,30 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Задачи на {{ date|date:"d.m.Y" }}{% endblock %}
+
+{% block content %}
+<div class="page">
+    <a href="{{ calendar_url }}" class="back">← Календарь</a>
+
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Задачи на {{ date|date:"d.m.Y" }}</h1>
+                <p class="panel__subtitle">
+                    {{ tasks|length }} {{ tasks|length|pluralize_ru:"задача,задачи,задач" }} с дедлайном на этот день
+                </p>
+            </div>
+            <a href="{% url 'tasks:task_create' %}" class="btn btn--primary">+ Новая задача</a>
+        </header>
+
+        <ul class="grid">
+            {% for task in tasks %}
+                {% include "tasks/_task_card.html" %}
+            {% empty %}
+                <li class="empty">На этот день дедлайнов нет</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

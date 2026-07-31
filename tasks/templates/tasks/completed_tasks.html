@@ -1,0 +1,33 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Завершённые задачи{% endblock %}
+
+{% block content %}
+<div class="page">
+    <nav class="subtabs">
+        <a href="{% url 'tasks:completed_tasks' %}" class="subtabs__item is-active">Задачи</a>
+        <a href="{% url 'tasks:completed_projects' %}" class="subtabs__item">Проекты</a>
+    </nav>
+
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Завершённые задачи</h1>
+                <p class="panel__subtitle">
+                    {{ tasks|length }} {{ tasks|length|pluralize_ru:"задача,задачи,задач" }}
+                </p>
+                <p class="panel__desc">Всё, что уже сделано. Если задача закрыта по ошибке — нажмите на галочку, и она вернётся в работу.</p>
+            </div>
+        </header>
+
+        <ul class="grid">
+            {% for task in tasks %}
+                {% include "tasks/_task_card.html" %}
+            {% empty %}
+                <li class="empty">Завершённых задач нет</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+{% endblock %}

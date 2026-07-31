@@ -1,0 +1,54 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}История — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page">
+  <div class="page-head">
+    <h2>История работы</h2>
+    <a href="{% url 'focus:statistics' %}" class="btn btn--ghost btn--sm">Статистика</a>
+  </div>
+
+  {% if records %}
+  <div class="panel">
+    <div class="panel__head">
+      <h3 class="panel__title">Записи работы</h3>
+    </div>
+    <div style="padding:12px 20px 20px;">
+      <div class="history-list">
+        {% for r in records %}
+        <div class="history-item">
+          <div>
+            <div class="history-item__date">{{ r.task.name }}</div>
+            <div class="history-item__stats">
+              <span>{{ r.started_at|date:"d.m.Y H:i" }}</span>
+              {% if r.ended_at %}
+              <span>~{{ r.ended_at|timeuntil:r.started_at }}</span>
+              {% endif %}
+              <span>
+                {% if not r.result %}● В работе
+                {% elif r.result == 1 %}✓ Завершена
+                {% elif r.result == 2 %}⟳ Отложена
+                {% elif r.result == 3 %}✗ Отменена
+                {% endif %}
+              </span>
+            </div>
+          </div>
+          {% if not r.result %}
+          <a href="{% url 'focus:in_progress' pk=r.pk %}" class="btn btn--primary btn--sm">Продолжить</a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="page page--narrow">
+    <div class="panel" style="text-align:center;padding:48px 32px;">
+      <p class="is-muted">Пока нет записей о работе.</p>
+      <a href="{% url 'focus:assess' %}" class="btn btn--primary" style="margin-top:16px;">Начать работу</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

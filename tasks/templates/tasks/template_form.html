@@ -1,0 +1,65 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ form.instance.pk|yesno:"Изменение шаблона,Новый шаблон" }}{% endblock %}
+
+{% block content %}
+<div class="page page--medium">
+    <a href="{% url 'tasks:project_list' %}" class="back">← Проекты</a>
+    <h1>{{ form.instance.pk|yesno:"Изменить шаблон,Новый шаблон" }}</h1>
+    <p class="page-desc">Создайте шаблон проекта с этапами, длительностью и сложностью. Потом по нему можно будет запускать новые проекты одним нажатием.</p>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        <div class="field">
+            <label for="{{ form.name.id_for_label }}">Название</label>
+            {{ form.name }}
+            {{ form.name.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.description.id_for_label }}">Описание</label>
+            {{ form.description }}
+            {{ form.description.errors }}
+        </div>
+
+        <fieldset class="ftasks-block">
+            <legend>Этапы шаблона</legend>
+            {{ task_formset.management_form }}
+            {{ task_formset.non_form_errors }}
+            <div id="task-forms">
+                {% for f in task_formset %}
+                    {% include "tasks/_template_task_form.html" %}
+                {% endfor %}
+            </div>
+            <button type="button" class="btn btn--ghost btn--sm" id="add-task-form">+ Ещё этап</button>
+        </fieldset>
+
+        <div class="form__actions">
+            <button type="submit" class="btn btn--primary">{{ form.instance.pk|yesno:"Сохранить шаблон,Создать шаблон проекта" }}</button>
+            <a href="{% url 'tasks:project_list' %}" class="btn btn--ghost">Отмена</a>
+        </div>
+        {% if form.instance.pk %}
+            <div class="form__delete">
+                <a href="{% url 'tasks:template_delete' form.instance.pk %}" class="btn btn--danger">Удалить шаблон</a>
+            </div>
+        {% endif %}
+    </form>
+</div>
+
+<template id="empty-task-form">
+    {% include "tasks/_template_task_form.html" with f=task_formset.empty_form %}
+</template>
+
+<script>
+    // Кнопка «+ Ещё этап»: клонирует пустую форму формсета.
+    document.getElementById("add-task-form").addEventListener("click", function () {
+        var total = document.getElementById("id_tasks-TOTAL_FORMS");
+        var index = parseInt(total.value, 10);
+        var html = document.getElementById("empty-task-form").innerHTML
+            .replace(/__prefix__/g, index);
+        var wrapper = document.createElement("div");
+        wrapper.innerHTML = html;
+        document.getElementById("task-forms").appendChild(wrapper.firstElementChild);
+        total.value = index + 1;
+    });
+</script>
+{% endblock %}

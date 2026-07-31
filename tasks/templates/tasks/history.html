@@ -1,0 +1,47 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}История{% endblock %}
+
+{% block content %}
+<div class="page">
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">История</h1>
+                <p class="panel__desc">Журнал всех действий по неделям: что создано, выполнено, изменено и удалено. Полезно вспомнить, куда ушла неделя.</p>
+            </div>
+        </header>
+
+        <nav class="week-nav">
+            <a href="?year={{ prev_year }}&week={{ prev_week }}" class="btn btn--ghost btn--sm">← Предыдущая</a>
+            <span class="week-nav__label">{{ week_start|date:"j F" }} – {{ week_end|date:"j F Y" }}</span>
+            <a href="?year={{ next_year }}&week={{ next_week }}" class="btn btn--ghost btn--sm">Следующая →</a>
+        </nav>
+
+        <div class="history">
+            {% if entries %}
+                {% regroup entries by created_at.date as days %}
+                {% for day in days %}
+                    <section class="history-day">
+                        <h2 class="history-day__title">{{ day.grouper|date:"j F Y" }}</h2>
+                        <p class="history-day__count">
+                            {{ day.list|length }} {{ day.list|length|pluralize_ru:"действие,действия,действий" }}
+                        </p>
+                        <ul class="history-list">
+                            {% for entry in day.list %}
+                                <li class="history-list__item">
+                                    <span class="history-list__time">{{ entry.created_at|date:"H:i" }}</span>
+                                    <span class="history-list__text">{{ entry.text }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endfor %}
+            {% else %}
+                <p class="empty">На этой неделе действий нет.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

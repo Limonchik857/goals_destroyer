@@ -1,0 +1,66 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Голосования — goal_destroyer{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>Доска голосования</h1>
+            <p class="page-desc">Соберите мнение команды без долгих созвонов: участники анонимно накидывают карточки, голосуют точками за самое важное, а итог сам выстраивается по голосам и скачивается в Markdown. Регистрация не нужна — одна ссылка.</p>
+        </div>
+    </header>
+
+    <div class="how">
+        <div class="how__step">
+            <span class="how__num">1</span>
+            <p>Создайте доску и разошлите ссылку. Команда анонимно накидывает карточки в три колонки.</p>
+        </div>
+        <div class="how__step">
+            <span class="how__num">2</span>
+            <p>Включите фазу голосования: каждый ставит точки на самое важное. Таймер держит темп.</p>
+        </div>
+        <div class="how__step">
+            <span class="how__num">3</span>
+            <p>Завершите голосование — итоги сами выстроятся по голосам, протокол скачивается в Markdown.</p>
+        </div>
+    </div>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Новая доска</h2>
+        <p class="panel__desc">Колонки уже настроены: «Что было хорошо», «Что было плохо», «Что меняем».</p>
+
+        <form method="post" novalidate class="form form--plain">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+
+            <div class="form-grid">
+                <div class="field field--wide">
+                    <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+                    {{ form.title }}
+                    {{ form.title.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.organizer.id_for_label }}">{{ form.organizer.label }}</label>
+                    {{ form.organizer }}
+                    {{ form.organizer.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.votes_per_person.id_for_label }}">{{ form.votes_per_person.label }}</label>
+                    {{ form.votes_per_person }}
+                    {{ form.votes_per_person.errors }}
+                </div>
+                <div class="field field--wide">
+                    <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                    {{ form.description }}
+                    {{ form.description.errors }}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn--primary">Создать доску</button>
+        </form>
+    </section>
+</div>
+{% endblock %}

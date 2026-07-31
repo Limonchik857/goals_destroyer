@@ -1,0 +1,90 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}{{ form.instance.pk|yesno:"Редактирование задачи,Новая задача" }}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:workspace' %}" class="back">← К задачам</a>
+    <h1>{{ form.instance.pk|yesno:"Редактировать задачу,Новая задача" }}</h1>
+
+    <form method="post" class="form" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="field">
+            <label for="{{ form.name.id_for_label }}">Название</label>
+            {{ form.name }}
+            {{ form.name.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.project.id_for_label }}">Проект</label>
+            {{ form.project }}
+            {{ form.project.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.priority.id_for_label }}">Приоритет</label>
+            {{ form.priority }}
+            {{ form.priority.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.difficulty.id_for_label }}">Сложность</label>
+            {{ form.difficulty }}
+            <div class="help">Нужна разделу «Фокус и энергия» для подбора задач.</div>
+            {{ form.difficulty.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.estimated_duration.id_for_label }}">Предполагаемая длительность</label>
+            {{ form.estimated_duration }}
+            <div class="help">Нужна разделу «Фокус и энергия» для подбора задач.</div>
+            {{ form.estimated_duration.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.recurrence.id_for_label }}">Повторение</label>
+            <div class="recurrence-row">
+                {{ form.recurrence }}
+                <div class="recurrence-row__days" data-interval-field>
+                    {{ form.recurrence_interval_days }}
+                </div>
+            </div>
+            <div class="help">Задача автоматически создаёт новую копию после выполнения. Для «Каждые N дней» укажите число дней в поле рядом.</div>
+            {{ form.recurrence.errors }}
+            {{ form.recurrence_interval_days.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.deadline.id_for_label }}">Дедлайн</label>
+            {{ form.deadline }}
+            {{ form.deadline.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.description.id_for_label }}">Описание</label>
+            {{ form.description }}
+            {{ form.description.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.attachments.id_for_label }}">Прикрепить файлы</label>
+            {{ form.attachments }}
+            <div class="help">{{ form.attachments.help_text }}</div>
+            {{ form.attachments.errors }}
+            {% if form.instance.pk %}
+                {% with attached=form.instance.files.count %}
+                    {% if attached %}
+                        <div class="help">
+                            Уже прикреплено: {{ attached }} {{ attached|pluralize_ru:"файл,файла,файлов" }}.
+                            Новые файлы добавятся к ним — открепить можно на
+                            <a href="{% url 'tasks:task_detail' form.instance.pk %}">странице задачи</a>.
+                        </div>
+                    {% endif %}
+                {% endwith %}
+            {% endif %}
+        </div>
+        <div class="form__actions">
+            <button type="submit" class="btn btn--primary">{{ form.instance.pk|yesno:"Сохранить изменения,Создать задачу" }}</button>
+            <a href="{% url 'tasks:workspace' %}" class="btn btn--ghost">Отмена</a>
+        </div>
+        {% if form.instance.pk %}
+            <div class="form__delete">
+                <a href="{% url 'tasks:task_delete' form.instance.pk %}" class="btn btn--danger">Удалить задачу</a>
+            </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

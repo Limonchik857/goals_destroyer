@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe \"C:/Users/Lenovo/AppData/Local/Temp/claude/C--Users-Lenovo-Desktop-main-Coding-site/d3a55ea6-eb83-4ffa-b345-af9c29e3ad08/scratchpad/verify.py\")",
+      "Bash(.venv/Scripts/python.exe manage.py check)",
+      "Bash(.venv/Scripts/python.exe manage.py makemigrations --check --dry-run)",
+      "Bash(.venv/Scripts/python.exe manage.py makemigrations tasks)",
+      "Bash(.venv/Scripts/python.exe manage.py migrate)",
+      "Bash(.venv/Scripts/python.exe manage.py test tasks.tests.TaskFileTest)",
+      "Bash(.venv/Scripts/pip.exe install *)",
+      "Bash(.venv/Scripts/python.exe -c \"import pypdf, docx; print\\('pypdf', pypdf.__version__\\); import lxml; print\\('docx ok'\\)\")",
+      "Bash(.venv/Scripts/python.exe manage.py test tasks.tests.AttachmentAnalysisTest tasks.tests.TaskFileTest)",
+      "Bash(.venv/Scripts/python.exe manage.py test)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe manage.py test tasks.tests.AuthSecurityTest tasks.tests.ImportRobustnessTest tasks.tests.RedirectSafetyTest tasks.tests.AttachmentExtensionBypassTest tasks.tests.RecurrenceTest)",
+      "Bash(.venv/Scripts/python.exe manage.py test tasks.tests.ImportRobustnessTest tasks.tests.ImportTest)",
+      "Bash(.venv/Scripts/python.exe manage.py check --deploy)",
+      "Bash(.venv/Scripts/python.exe manage.py test tasks.tests.StatsPageTest tasks.tests.GamificationTest tasks.tests.SmokeTest)",
+      "Bash(.venv/Scripts/python.exe manage.py test tasks.tests.StatsPageTest)",
+      "PowerShell(New-Item *)",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Lenovo\\\\Desktop\\\\main\\\\Coding\\\\site\\\\tasks\\\\tests.py\" | Measure-Object -Line\\).Lines)"
+    ]
+  }
+}

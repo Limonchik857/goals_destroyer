@@ -1,0 +1,60 @@
+{% extends 'focus/base.html' %}
+{% block title %}История{% endblock %}
+{% block content %}
+<h2>История состояний</h2>
+
+<div class="stats-overview">
+  <div class="stat-card">
+    <span class="stat-number">{{ avg_energy|default:"—" }}</span>
+    <span class="stat-label">Средняя энергия</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">{{ avg_focus|default:"—" }}</span>
+    <span class="stat-label">Средняя концентрация</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-number">{{ total_completed }}</span>
+    <span class="stat-label">Выполнено задач</span>
+  </div>
+</div>
+
+{% if mode_data %}
+<div class="mode-stats">
+  <h3>Задачи по режимам</h3>
+  <table class="stats-table">
+    <thead>
+      <tr>
+        <th>Режим</th>
+        <th>Выполнено задач</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in mode_data %}
+      <tr>
+        <td>{{ item.title }}</td>
+        <td>{{ item.count }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if states %}
+<div class="history-list">
+  <h3>Дневные состояния</h3>
+  {% for state in states %}
+  <div class="history-card">
+    <div class="history-date">{{ state.date|date:"d.m.Y" }}</div>
+    <div class="history-stats">
+      <span>Энергия: {{ state.energy }}</span>
+      <span>Концентрация: {{ state.focus }}</span>
+      <span>Время: {{ state.available_minutes }} мин</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="empty-note">Пока нет записей о состояниях.</p>
+{% endif %}
+{% endblock %}

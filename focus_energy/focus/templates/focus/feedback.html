@@ -1,0 +1,27 @@
+{% extends 'focus/base.html' %}
+{% block title %}Оценка рекомендации{% endblock %}
+{% block content %}
+<div class="feedback-card">
+  <h2>Задача выполнена</h2>
+  <p>{{ task.title }}</p>
+  <p>Насколько подходящей была рекомендация?</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="radio-group" style="margin-bottom: 20px;">
+      <label class="radio-label">
+        <input type="radio" name="rating" value="3" required>
+        <span>Подошла</span>
+      </label>
+      <label class="radio-label">
+        <input type="radio" name="rating" value="2">
+        <span>Нормально</span>
+      </label>
+      <label class="radio-label">
+        <input type="radio" name="rating" value="1">
+        <span>Не подошла</span>
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary btn-large">Отправить</button>
+  </form>
+</div>
+{% endblock %}

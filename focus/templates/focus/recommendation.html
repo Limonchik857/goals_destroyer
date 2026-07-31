@@ -1,0 +1,84 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}Рекомендация — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page page--medium">
+  <a href="{% url 'focus:assess' %}" class="back">← Назад к оценке</a>
+
+  <div class="detail-card">
+    <div class="detail-card__head" style="margin-bottom:12px;">
+      {% if is_urgent %}
+      <span class="badge badge--todo" style="font-size:13px;">⚠ Срочная задача</span>
+      {% endif %}
+    </div>
+
+    <h2 style="font-size:22px;margin-bottom:16px;">{{ task.name }}</h2>
+
+    {% if task.description %}
+    <p class="detail-card__desc" style="margin-bottom:16px;">{{ task.description|truncatewords:40 }}</p>
+    {% endif %}
+
+    <div class="meta">
+      <div class="meta__row">
+        <dt>Приоритет</dt>
+        <dd>{{ task.get_priority_display }}</dd>
+      </div>
+      <div class="meta__row">
+        <dt>Сложность</dt>
+        <dd>{{ task.get_difficulty_display }}</dd>
+      </div>
+      <div class="meta__row">
+        <dt>Длительность</dt>
+        <dd>{{ task.get_estimated_duration_display }}</dd>
+      </div>
+      {% if task.deadline %}
+      <div class="meta__row">
+        <dt>Срок</dt>
+        <dd>{{ task.deadline|date:"d.m.Y" }}</dd>
+      </div>
+      {% endif %}
+      {% if task.project %}
+      <div class="meta__row">
+        <dt>Проект</dt>
+        <dd>{{ task.project.name }}</dd>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if is_urgent %}
+    <div class="warning" style="margin-bottom:20px;">
+      <p>Эта задача срочная, но требует больше ресурсов, чем у тебя сейчас.</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">Не нужно выполнять её целиком. Начни с небольшого первого шага.</p>
+    </div>
+    {% endif %}
+
+    <div style="margin-bottom:20px;">
+      <h3 style="font-size:14px;font-weight:600;margin-bottom:8px;">Почему выбрана</h3>
+      <ul class="reasons-list">
+        {% for reason in reasons %}
+        <li>{{ reason }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="detail-card__actions">
+      <form method="post" action="{% url 'focus:start' %}" class="inline">
+        {% csrf_token %}
+        <input type="hidden" name="task_id" value="{{ task.pk }}">
+        <button type="submit" class="btn btn--primary">Начать работу</button>
+      </form>
+      <form method="post" action="{% url 'focus:next' %}" class="inline">
+        {% csrf_token %}
+        <input type="hidden" name="task_id" value="{{ task.pk }}">
+        <button type="submit" class="btn btn--ghost">Показать другую</button>
+      </form>
+      <form method="post" action="{% url 'focus:reject' %}" class="inline" style="margin-left:auto;">
+        {% csrf_token %}
+        <input type="hidden" name="task_id" value="{{ task.pk }}">
+        <button type="submit" class="btn btn--danger">Эта задача не подходит</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

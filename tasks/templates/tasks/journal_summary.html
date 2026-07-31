@@ -1,0 +1,96 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Сводка — Журнал достижений{% endblock %}
+
+{% block content %}
+<div class="page">
+    <a href="{% url 'tasks:journal' %}" class="back">← Журнал</a>
+
+    <header class="page-head">
+        <div>
+            <h1>Сводка достижений</h1>
+            <p class="page-desc">Готовый документ: ваши записи плюс то, что сайт собрал автоматически — выполненные задачи и завершённые проекты за период.</p>
+        </div>
+    </header>
+
+    {# --- Выбор периода --- #}
+    <nav class="period-nav">
+        {% for key, label in periods.items %}
+            <a href="?period={{ key }}"
+               class="period-nav__item{% if period == key %} period-nav__item--active{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </nav>
+
+    {# --- Документ --- #}
+    <section class="panel panel--pad summary-doc">
+        <h2 class="summary-doc__title">Что сделано: {{ summary.date_from|date:"d.m.Y" }} — {{ summary.date_to|date:"d.m.Y" }}</h2>
+
+        <div class="stats stats--row">
+            <div class="stat-card">
+                <span class="stat-card__value">{{ summary.tasks|length }}</span>
+                <span class="stat-card__label">Задач выполнено</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-card__value">{{ summary.projects_done|length }}</span>
+                <span class="stat-card__label">Проектов завершено</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-card__value">{{ summary.entries|length }}</span>
+                <span class="stat-card__label">Записей в журнале</span>
+            </div>
+        </div>
+
+        {% if summary.projects_done %}
+            <h3 class="summary-doc__h">Завершённые проекты</h3>
+            <ul class="summary-doc__list">
+                {% for project in summary.projects_done %}
+                    <li>🏁 {{ project.name }} <span class="is-muted">({{ project.completed_at|date:"d.m.Y" }})</span></li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if summary.by_project %}
+            <h3 class="summary-doc__h">Задачи по проектам</h3>
+            {% for project_name, tasks in summary.by_project %}
+                <h4 class="summary-doc__sub">{{ project_name }}</h4>
+                <ul class="summary-doc__list">
+                    {% for task in tasks %}
+                        <li>✓ {{ task.name }}</li>
+                    {% endfor %}
+                </ul>
+            {% endfor %}
+        {% endif %}
+
+        {% if summary.timeline %}
+            <h3 class="summary-doc__h">По дням</h3>
+            {% for day in summary.timeline %}
+                <h4 class="summary-doc__sub">{{ day.date|date:"j F Y" }}</h4>
+                <ul class="summary-doc__list">
+                    {% for entry in day.entries %}
+                        <li>{{ entry.text }}{% if entry.project %} <span class="is-muted">({{ entry.project.name }})</span>{% endif %}</li>
+                    {% endfor %}
+                    {% for task in day.tasks %}
+                        <li class="is-muted">выполнена задача «{{ task.name }}»</li>
+                    {% endfor %}
+                </ul>
+            {% endfor %}
+        {% else %}
+            <p class="empty">За этот период пока пусто: ни записей, ни выполненных задач.</p>
+        {% endif %}
+    </section>
+
+    {# --- Экспорт в Markdown --- #}
+    <section class="panel panel--pad">
+        <div class="notes-section__head">
+            <h2 class="panel__title panel__title--block">Markdown</h2>
+            <div class="panel__head-actions">
+                <button type="button" class="btn btn--ghost btn--sm" data-copy="journal-md">Копировать</button>
+                <a href="{% url 'tasks:journal_summary_md' %}?period={{ period }}" class="btn btn--ghost btn--sm">Скачать .md</a>
+            </div>
+        </div>
+        <p class="panel__desc">Готово для вставки в стендап, письмо начальнику или резюме.</p>
+        <textarea id="journal-md" class="md-export" readonly rows="14">{{ markdown }}</textarea>
+    </section>
+</div>
+{% endblock %}

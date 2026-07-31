@@ -1,0 +1,127 @@
+/* Фокус и энергия — дополнения к основному стилю */
+
+/* Radio-группа как список карточек */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.radio-group-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.radio-label:hover {
+  background: var(--surface-2);
+}
+.radio-label input[type="radio"]:checked + span {
+  font-weight: 600;
+  color: var(--accent);
+}
+.radio-label:has(input[type="radio"]:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Список причин */
+.reasons-list {
+  list-style: none;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 0;
+}
+.reasons-list li {
+  padding: 2px 0;
+}
+
+/* Карточка лучшей задачи */
+.focus-task-card {
+  padding: 20px;
+  margin: 0;
+}
+
+/* Карточки в истории */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.history-item__date {
+  font-weight: 600;
+  font-size: 14px;
+}
+.history-item__stats {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Приоритет: кружок (1-5) */
+.priority-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.pc-1 { background: #57d9a3; }
+.pc-2 { background: #6554c0; }
+.pc-3 { background: #0052cc; }
+.pc-4 { background: #ff8b00; }
+.pc-5 { background: #bf2600; }
+
+/* Таблица статистики */
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.stats-table th, .stats-table td {
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.stats-table th {
+  background: var(--surface-2);
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 600px) {
+  .history-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .history-item__stats {
+    flex-wrap: wrap;
+  }
+}

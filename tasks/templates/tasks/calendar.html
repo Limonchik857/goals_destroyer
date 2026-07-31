@@ -1,0 +1,42 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Календарь{% endblock %}
+
+{% block content %}
+<div class="page">
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">{{ month_date|date:"F Y"|capfirst }}</h1>
+                <p class="panel__subtitle">Дедлайны активных задач по дням</p>
+                <p class="panel__desc">Взгляд на месяц: в каждом дне видно, сколько задач нужно сдать. Откройте день, чтобы посмотреть его список.</p>
+            </div>
+            <div class="calendar-nav">
+                <a href="?year={{ prev_year }}&month={{ prev_month }}" class="btn btn--ghost btn--sm">← {{ prev_month_date|date:"F"|capfirst }}</a>
+                <a href="?year={{ next_year }}&month={{ next_month }}" class="btn btn--ghost btn--sm">{{ next_month_date|date:"F"|capfirst }} →</a>
+            </div>
+        </header>
+
+        <div class="calendar">
+            <div class="calendar-weekdays">
+                <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+            </div>
+            <div class="calendar-grid">
+                {% for week in weeks %}
+                    {% for day in week %}
+                        <div class="calendar-day {% if not day.in_month %}calendar-day--muted{% endif %} {% if day.is_today %}calendar-day--today{% endif %}">
+                            <span class="calendar-day__num">{{ day.date.day }}</span>
+                            {% if day.count %}
+                                <span class="calendar-day__count">{{ day.count }} {{ day.count|pluralize_ru:"дедлайн,дедлайна,дедлайнов" }}</span>
+                            {% endif %}
+                            <a href="{% url 'tasks:calendar_day' year=day.date.year month=day.date.month day=day.date.day %}"
+                               class="calendar-day__view">просмотреть</a>
+                        </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}Статистика — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page">
+  <div class="page-head">
+    <h2>Статистика</h2>
+  </div>
+
+  <div class="stats stats--row">
+    <div class="stat-card">
+      <span class="stat-card__value">{{ total_records }}</span>
+      <span class="stat-card__label">Всего сессий работы</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value">{{ total_completed }}</span>
+      <span class="stat-card__label">Завершено</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value">{{ total_postponed }}</span>
+      <span class="stat-card__label">Отложено</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-card__value">{{ total_in_progress }}</span>
+      <span class="stat-card__label">В работе</span>
+    </div>
+  </div>
+
+  {% if has_insights %}
+    {% for insight in insights %}
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel__head">
+        <h3 class="panel__title">
+          {% if insight.type == 'postpone' %}Переносы
+          {% elif insight.type == 'difficulty' %}Сложность
+          {% else %}Наблюдение
+          {% endif %}
+        </h3>
+      </div>
+      <div style="padding:16px 20px;">
+        <p>{{ insight.text }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+  <div class="page page--narrow" style="margin-top:16px;">
+    <div class="panel" style="text-align:center;padding:48px 32px;">
+      <p class="is-muted">Пока недостаточно данных для выводов. Нужно минимум 5 завершённых задач.</p>
+      <a href="{% url 'focus:assess' %}" class="btn btn--primary" style="margin-top:16px;">Продолжить работу</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

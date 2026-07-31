@@ -1,0 +1,30 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}Задача завершена — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page page--narrow">
+  <div class="panel" style="text-align:center;padding:48px 32px;">
+    <h2 style="font-size:22px;margin-bottom:8px;">Задача завершена</h2>
+    <p style="font-size:16px;font-weight:600;margin-bottom:16px;">{{ record.task.name }}</p>
+
+    {% if duration %}
+    <div class="stats stats--row" style="margin-bottom:20px;">
+      <div class="stat-card">
+        <span class="stat-card__value">{{ duration }}</span>
+        <span class="stat-card__label">Фактическое время, мин</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-card__value">{{ record.task.get_estimated_duration_display }}</span>
+        <span class="stat-card__label">Планировалось</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="detail-card__actions" style="justify-content:center;">
+      <a href="{% url 'focus:assess' %}" class="btn btn--primary">Продолжить</a>
+      <a href="{% url 'focus:history' %}" class="btn btn--ghost">История</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends 'focus/base.html' %}
+{% block title %}Вход{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h2>Вход</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Войти</button>
+  </form>
+  <p class="auth-link">Нет аккаунта? <a href="{% url 'focus:register' %}">Зарегистрироваться</a></p>
+</div>
+{% endblock %}

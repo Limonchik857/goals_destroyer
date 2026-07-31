@@ -1,0 +1,181 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Организатор: {{ meeting.title }}{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>{{ meeting.title }}</h1>
+            <p class="page-desc">Страница организатора для сбора тем обсуждения. Сохраните её адрес — только по ней можно вести обсуждение.</p>
+        </div>
+        {% if meeting.is_collect %}
+            <span class="phase-badge phase-badge--collect">Сбор тем</span>
+        {% else %}
+            <span class="phase-badge phase-badge--done">Завершено</span>
+        {% endif %}
+    </header>
+
+    {# --- Обе ссылки сразу после описания --- #}
+    <div class="share-box">
+        <h3>Ссылки</h3>
+        <p class="share-box__hint">Участникам отправьте первую, вторую оставьте себе — по ней управление обсуждением.</p>
+        <div class="copy-row">
+            <input type="text" id="share-link" class="copy-row__input" value="{{ share_url }}" readonly>
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="share-link">Копировать</button>
+        </div>
+        <div class="copy-row">
+            <input type="text" id="admin-link" class="copy-row__input" value="{{ admin_url }}" readonly>
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="admin-link">Копировать</button>
+        </div>
+        <div class="share-box__actions">
+            <a href="{% url 'agenda:meeting' meeting.share_code %}" class="btn btn--ghost btn--sm">Открыть вид участника</a>
+        </div>
+    </div>
+
+    {# --- Инфо о сборе тем (вместо «Готовы обсуждать?») --- #}
+    {% if meeting.is_collect %}
+        <section class="panel panel--pad collect-info">
+            <p>Сейчас идёт сбор тем, которые нужно обсудить. Разошлите ссылку участникам — каждый может добавить свою тему. Когда начнётся разговор, отмечайте обсуждённое галочкой на карточке темы.</p>
+        </section>
+
+        {# --- Добавление темы организатором --- #}
+        <section class="panel panel--pad">
+            <form method="post" action="{% url 'agenda:admin_topic_add' meeting.admin_code %}" class="journal-add">
+                {% csrf_token %}
+                {{ topic_form.text }}
+                <button type="submit" class="btn btn--primary">+ Добавить тему</button>
+            </form>
+        </section>
+    {% endif %}
+
+    {# --- Темы для обсуждения --- #}
+    <section class="panel">
+        <header class="panel__head panel__head--center">
+            <div class="panel__head-center">
+                <h2 class="panel__title topics-title">Темы для обсуждения</h2>
+                <p class="panel__subtitle">{{ topics|length }} {{ topics|length|pluralize_ru:"тема,темы,тем" }}</p>
+            </div>
+        </header>
+        <ul class="grid">
+            {% for topic in topics %}
+                {% include "agenda/_topic_card.html" with show_actions=True %}
+            {% empty %}
+                <li class="empty">Тем пока нет. {% if meeting.is_collect %}Добавьте сами или разошлите ссылку участникам.{% endif %}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    {# --- Обсуждённые --- #}
+    {% if discussed %}
+        <section class="panel">
+            <header class="panel__head">
+                <div>
+                    <h2 class="panel__title">Обсудили</h2>
+                    <p class="panel__subtitle">{{ discussed|length }} {{ discussed|length|pluralize_ru:"тема,темы,тем" }}</p>
+                </div>
+            </header>
+            <ul class="grid">
+                {% for topic in discussed %}
+                    <li class="gcard is-done">
+                        <div class="gcard__top">
+                            <span class="check check--done">✓</span>
+                            <span class="gcard__title">{{ topic.text }}</span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
+    {# --- Перенести оставшиеся на следующую встречу --- #}
+    {% if meeting.is_collect and topics %}
+        <div class="form__actions">
+            <form method="post" action="{% url 'agenda:carry' meeting.admin_code %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--primary" data-confirm="carry">
+                    Перенести {{ topics|length }} {{ topics|length|pluralize_ru:"тему,темы,тем" }} на следующую встречу
+                </button>
+            </form>
+        </div>
+    {% endif %}
+
+    {# --- Запланировать созвон --- #}
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Созвон по итогам</h2>
+        <p class="panel__desc">Запланируйте время для встречи — создайте опрос в <strong>Встречах</strong> и согласуйте удобное время с командой.</p>
+        <a href="{% url 'meetings:home' %}" class="btn btn--primary">Запланировать в meet_point</a>
+    </section>
+
+    {# --- Закончить обсуждение тем --- #}
+    {% if meeting.is_collect %}
+        <div class="form__actions">
+            <form method="post" action="{% url 'agenda:finish' meeting.admin_code %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--primary" data-confirm="finish">Закончить обсуждение тем</button>
+            </form>
+        </div>
+    {% endif %}
+
+    {# --- Удалить обсуждение --- #}
+    <div class="form__delete">
+        <form method="post" action="{% url 'agenda:meeting_delete' meeting.admin_code %}"
+              onsubmit="return confirm('Удалить обсуждение со всеми темами?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--danger">Удалить обсуждение</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Анимация ухода карточки при отметке «обсудили».
+    document.addEventListener("submit", function (e) {
+        var form = e.target;
+        if (!form.classList.contains("gcard__toggle")) return;
+        if ((form.method || "").toLowerCase() === "get") return;
+        e.preventDefault();
+        var card = form.closest(".gcard");
+        if (card && card.classList.contains("is-leaving")) return;
+        if (card) {
+            card.classList.add("is-leaving");
+            setTimeout(function () { form.submit(); }, 420);
+        } else {
+            form.submit();
+        }
+    });
+
+    // Подтверждения.
+    document.querySelectorAll("[data-confirm='delete']").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            if (!confirm("Удалить эту тему?")) e.preventDefault();
+        });
+    });
+    document.querySelectorAll("[data-confirm='carry']").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            if (!confirm("Перенести оставшиеся темы на следующую встречу? Текущее обсуждение закроется.")) e.preventDefault();
+        });
+    });
+    document.querySelectorAll("[data-confirm='finish']").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            if (!confirm("Закончить обсуждение тем? После этого никто не сможет добавлять темы.")) e.preventDefault();
+        });
+    });
+
+    // Кнопки «Копировать».
+    document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var input = document.getElementById(btn.dataset.copy);
+            if (!input) return;
+            input.select();
+            if (navigator.clipboard) navigator.clipboard.writeText(input.value);
+            else document.execCommand("copy");
+            var old = btn.textContent;
+            btn.textContent = "Скопировано!";
+            setTimeout(function () { btn.textContent = old; }, 1500);
+        });
+    });
+</script>
+{% endblock %}

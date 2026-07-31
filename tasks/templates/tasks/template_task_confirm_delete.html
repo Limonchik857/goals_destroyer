@@ -1,0 +1,20 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Удаление задачи шаблона{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:template_detail' template.pk %}" class="back">← К шаблону</a>
+    <div class="confirm-card">
+        <h1>Удалить задачу из шаблона?</h1>
+        <p>Задача «{{ template_task.name }}» будет удалена из шаблона «{{ template.name }}».</p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="form__actions">
+                <button type="submit" class="btn btn--danger">Удалить</button>
+                <a href="{% url 'tasks:template_detail' template.pk %}" class="btn btn--ghost">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

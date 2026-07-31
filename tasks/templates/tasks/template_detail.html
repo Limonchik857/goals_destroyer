@@ -1,0 +1,81 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}{{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+    <a href="{% url 'tasks:project_list' %}" class="back">← Проекты</a>
+
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Шаблон: {{ template.name }}</h1>
+                <p class="panel__subtitle">
+                    {{ tasks|length }} {{ tasks|length|pluralize_ru:"задача,задачи,задач" }}
+                    {% if template.description %} · {{ template.description }}{% endif %}
+                </p>
+            </div>
+            <div class="panel__head-actions">
+                <a href="{% url 'tasks:template_task_create' template.pk %}" class="btn btn--ghost">+ Добавить шаг</a>
+                <a href="{% url 'tasks:template_run' template.pk %}" class="btn btn--primary">▶ Запустить</a>
+            </div>
+        </header>
+
+        <ul class="grid">
+            {% for task in tasks %}
+                <li class="gcard">
+                    <div class="gcard__top">
+                        <span class="gcard__title">{{ task.name }}</span>
+                        <div class="gcard__meta">
+                            <span class="priority priority--{{ task.priority }}">{{ task.get_priority_display }}</span>
+                            {% if task.deadline_offset_days is not None %}
+                                <span class="deadline">через {{ task.deadline_offset_days }} дн.</span>
+                            {% else %}
+                                <span class="deadline">Без дедлайна</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if task.description %}
+                        <p class="gcard__desc">{{ task.description }}</p>
+                    {% else %}
+                        <p class="gcard__desc gcard__desc--empty">Описания нет</p>
+                    {% endif %}
+                    <div class="gcard__footer">
+                        <span class="gcard__actions">
+                            <a href="{% url 'tasks:template_task_edit' template.pk task.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+                            <a href="{% url 'tasks:template_task_delete' template.pk task.pk %}" class="btn btn--danger btn--sm">Удалить</a>
+                        </span>
+                    </div>
+                </li>
+            {% empty %}
+                <li class="empty">В шаблоне пока нет задач. Добавьте первую.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Запуски</h2>
+        <p class="panel__desc">Каждый запуск — отдельный проект со своим прогрессом. Изменения шаблона на уже запущенные процессы не влияют.</p>
+        {% if runs %}
+            <ul class="run-list">
+                {% for run in runs %}
+                    <li class="run-list__item">
+                        <a href="{% url 'tasks:project_detail' run.pk %}" class="run-list__name">{{ run.name }}</a>
+                        <span class="run-list__meta">
+                            {{ run.created_at|date:"j E Y" }} ·
+                            {{ run.progress.done }}/{{ run.progress.total }}
+                            {% if run.is_completed %}· завершён{% elif run.is_overdue %}· просрочен{% endif %}
+                        </span>
+                        <span class="pbar {% if run.progress.percent == 100 %}pbar--full{% endif %}">
+                            <span class="pbar__fill" style="width: {{ run.progress.percent }}%"></span>
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty">Этот процесс ещё ни разу не запускали.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

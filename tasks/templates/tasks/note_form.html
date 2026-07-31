@@ -1,0 +1,30 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ form.instance.pk|yesno:"Изменение заметки,Новая заметка" }}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:note_list' %}" class="back">← Заметки</a>
+    <h1>{{ form.instance.pk|yesno:"Изменить заметку,Новая заметка" }}</h1>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        <div class="field">
+            <label for="{{ form.title.id_for_label }}">Название</label>
+            {{ form.title }}
+            {{ form.title.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.text.id_for_label }}">Текст</label>
+            {{ form.text }}
+            {{ form.text.errors }}
+        </div>
+        <div class="form__actions">
+            <button type="submit" class="btn btn--primary">
+                {% if form.instance.pk %}Сохранить изменения{% else %}Создать{% endif %}
+            </button>
+            <a href="{% url 'tasks:note_list' %}" class="btn btn--ghost">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

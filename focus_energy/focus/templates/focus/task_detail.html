@@ -1,0 +1,62 @@
+{% extends 'focus/base.html' %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block content %}
+<div class="detail-card">
+  <div class="detail-header">
+    <h2>{{ task.title }}</h2>
+    {% if task.is_completed %}
+    <span class="badge badge-done">Выполнена</span>
+    {% else %}
+    <span class="badge badge-active">Активна</span>
+    {% endif %}
+  </div>
+
+  {% if task.description %}
+  <div class="detail-section">
+    <h3>Описание</h3>
+    <p>{{ task.description }}</p>
+  </div>
+  {% endif %}
+
+  <div class="detail-grid">
+    <div class="detail-item">
+      <span class="detail-label">Приоритет</span>
+      <span class="detail-value">{{ task.priority }} / 5</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Оценка времени</span>
+      <span class="detail-value">{{ task.estimated_minutes }} мин</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Требуемая энергия</span>
+      <span class="detail-value">{{ task.energy_required }} / 5</span>
+    </div>
+    <div class="detail-item">
+      <span class="detail-label">Требуемая концентрация</span>
+      <span class="detail-value">{{ task.focus_required }} / 5</span>
+    </div>
+    {% if task.deadline %}
+    <div class="detail-item">
+      <span class="detail-label">Срок</span>
+      <span class="detail-value">{{ task.deadline|date:"d.m.Y" }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="detail-actions">
+    {% if not task.is_completed %}
+    <form method="post" action="{% url 'focus:task_complete' pk=task.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">Выполнить</button>
+    </form>
+    <a href="{% url 'focus:task_edit' pk=task.pk %}" class="btn btn-secondary">Редактировать</a>
+    {% endif %}
+    <form method="post" action="{% url 'focus:task_delete' pk=task.pk %}" onsubmit="return confirm('Удалить задачу?')">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Удалить</button>
+    </form>
+  </div>
+
+  <a href="{% url 'focus:task_list' %}" class="back-link">← Все задачи</a>
+</div>
+{% endblock %}

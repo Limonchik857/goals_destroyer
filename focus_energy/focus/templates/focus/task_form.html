@@ -1,0 +1,25 @@
+{% extends 'focus/base.html' %}
+{% block title %}{% if is_create %}Новая задача{% else %}Редактировать задачу{% endif %}{% endblock %}
+{% block content %}
+<div class="form-card">
+  <h2>{% if is_create %}Новая задача{% else %}Редактировать задачу{% endif %}</h2>
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="form-group">
+      {{ field.label_tag }}
+      {{ field }}
+      {% if field.help_text %}
+      <small class="help-text">{{ field.help_text }}</small>
+      {% endif %}
+      {% for error in field.errors %}
+      <div class="field-error">{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-large">
+      {% if is_create %}Создать{% else %}Сохранить{% endif %}
+    </button>
+  </form>
+</div>
+{% endblock %}

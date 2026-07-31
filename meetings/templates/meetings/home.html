@@ -1,0 +1,90 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Встречи — goal_destroyer{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>Когда всем удобно?</h1>
+            <p class="page-desc">Создайте опрос, отправьте коллегам одну ссылку — каждый отметит удобное время, а сервис сам найдёт слот, куда могут все. Без регистрации и переписки «а в четверг можешь?».</p>
+        </div>
+    </header>
+
+    <div class="how">
+        <div class="how__step">
+            <span class="how__num">1</span>
+            <p>Опишите встречу: дни, в которые она возможна, и рабочее окно времени.</p>
+        </div>
+        <div class="how__step">
+            <span class="how__num">2</span>
+            <p>Разошлите ссылку. Участники закрашивают удобные клетки — регистрация не нужна.</p>
+        </div>
+        <div class="how__step">
+            <span class="how__num">3</span>
+            <p>Сетка подсветит пересечения. Назначьте лучший слот — все увидят итог.</p>
+        </div>
+    </div>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Новый опрос</h2>
+        <p class="panel__desc">Сетку слотов сервис построит сам из диапазона дней и окна времени.</p>
+
+        <form method="post" novalidate class="form form--plain">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <ul class="errorlist">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>
+            {% endif %}
+
+            <div class="form-grid">
+                <div class="field field--wide">
+                    <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+                    {{ form.title }}
+                    {{ form.title.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.organizer.id_for_label }}">{{ form.organizer.label }}</label>
+                    {{ form.organizer }}
+                    {{ form.organizer.errors }}
+                </div>
+                <div class="field field--wide">
+                    <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+                    {{ form.description }}
+                    {{ form.description.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.date_start.id_for_label }}">{{ form.date_start.label }}</label>
+                    {{ form.date_start }}
+                    {{ form.date_start.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.date_end.id_for_label }}">{{ form.date_end.label }}</label>
+                    {{ form.date_end }}
+                    {{ form.date_end.errors }}
+                </div>
+                <div class="field field--check">
+                    {{ form.skip_weekends }}
+                    <label for="{{ form.skip_weekends.id_for_label }}">{{ form.skip_weekends.label }}</label>
+                </div>
+                <div class="field">
+                    <label for="{{ form.time_from.id_for_label }}">{{ form.time_from.label }}</label>
+                    {{ form.time_from }}
+                    {{ form.time_from.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.time_to.id_for_label }}">{{ form.time_to.label }}</label>
+                    {{ form.time_to }}
+                    {{ form.time_to.errors }}
+                </div>
+                <div class="field">
+                    <label for="{{ form.slot_minutes.id_for_label }}">{{ form.slot_minutes.label }}</label>
+                    {{ form.slot_minutes }}
+                    {{ form.slot_minutes.errors }}
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn--primary">Создать опрос</button>
+        </form>
+    </section>
+</div>
+{% endblock %}

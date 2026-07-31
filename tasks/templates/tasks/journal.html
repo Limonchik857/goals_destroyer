@@ -1,0 +1,98 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Журнал достижений{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>Журнал достижений</h1>
+            <p class="page-desc">1–2 строки в день о том, что сделано. Записи копятся, а потом по кнопке собираются в сводку для стендапа или ревью.</p>
+        </div>
+        <a href="{% url 'tasks:journal_summary' %}" class="btn btn--primary">Собрать сводку</a>
+    </header>
+
+    {# --- Напоминание --- #}
+    {% if not wrote_today %}
+        <div class="journal-reminder">
+            <span class="journal-reminder__icon">✍️</span>
+            <div class="journal-reminder__body">
+                <strong>Сегодня ещё нет записи.</strong>
+                {% if done_today %}
+                    Выполнено задач: {{ done_today }} — отметьте, что было главным.
+                {% else %}
+                    Даже одна строка вечером — уже след в журнале.
+                {% endif %}
+            </div>
+            {% if streak > 0 %}
+                <span class="journal-reminder__streak">Серия: {{ streak }} {{ streak|pluralize_ru:"день,дня,дней" }}</span>
+            {% endif %}
+        </div>
+    {% elif streak > 1 %}
+        <div class="journal-reminder journal-reminder--ok">
+            <span class="journal-reminder__icon">🔥</span>
+            <div class="journal-reminder__body">
+                Запись за сегодня есть. Серия — <strong>{{ streak }} {{ streak|pluralize_ru:"день,дня,дней" }}</strong> подряд.
+            </div>
+        </div>
+    {% endif %}
+
+    {# --- Быстрое добавление --- #}
+    <section class="panel panel--pad">
+        <form method="post" class="journal-add">
+            {% csrf_token %}
+            <div class="journal-add__row">
+                {{ form.text }}
+                {{ form.date }}
+                {{ form.project }}
+                <button type="submit" class="btn btn--primary">Записать</button>
+            </div>
+            {% if form.errors %}
+                <ul class="form__errors">
+                    {% for field in form %}
+                        {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </form>
+    </section>
+
+    {# --- Лента записей --- #}
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h2 class="panel__title">Лента</h2>
+                <p class="panel__subtitle">{{ entries|length }} {{ entries|length|pluralize_ru:"запись,записи,записей" }}</p>
+            </div>
+        </header>
+        <div class="history">
+            {% regroup entries by date as days %}
+            {% for day in days %}
+                <section class="history-day">
+                    <h2 class="history-day__title">
+                        {{ day.grouper|date:"j F Y" }}
+                        {% if day.grouper == today %}<span class="journal-today">сегодня</span>{% endif %}
+                    </h2>
+                    <ul class="journal-list">
+                        {% for entry in day.list %}
+                            <li class="journal-list__item">
+                                <span class="journal-list__text">{{ entry.text }}</span>
+                                {% if entry.project %}
+                                    <span class="tag tag--labeled">{{ entry.project.name }}</span>
+                                {% endif %}
+                                <span class="journal-list__actions">
+                                    <a href="{% url 'tasks:journal_entry_edit' entry.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+                                    <a href="{% url 'tasks:journal_entry_delete' entry.pk %}" class="btn btn--ghost btn--sm">Удалить</a>
+                                </span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            {% empty %}
+                <p class="empty">Записей пока нет. Начните с одной строки о сегодняшнем дне — через месяц скажете себе спасибо.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

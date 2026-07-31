@@ -1,0 +1,37 @@
+{# Карточка темы обсуждения. Переменные: topic, meeting, show_actions (организатор). #}
+<li class="gcard {% if topic.discussed %}is-done{% endif %}" data-topic-id="{{ topic.pk }}">
+    <div class="gcard__top">
+        {% if show_actions and meeting.is_collect %}
+            {# Квадрат-чекбокс: нажать → галочка → карточка анимацией уезжает вбок #}
+            <form method="post"
+                  action="{% url 'agenda:admin_topic_discuss' meeting.admin_code topic.pk %}"
+                  class="gcard__toggle">
+                {% csrf_token %}
+                <button type="submit" class="check" aria-label="Отметить обсуждённым"></button>
+            </form>
+        {% endif %}
+        <span class="gcard__title">{{ topic.text }}</span>
+    </div>
+    <div class="gcard__footer">
+        <span class="gcard__spacer"></span>
+        <span class="gcard__actions">
+            {% if meeting.is_collect %}
+                {% if show_actions %}
+                    <form method="post"
+                          action="{% url 'agenda:admin_topic_delete' meeting.admin_code topic.pk %}"
+                          class="inline" data-confirm-form="delete-topic">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--ghost btn--sm" data-confirm="delete">Удалить</button>
+                    </form>
+                {% elif topic.mine %}
+                    <form method="post"
+                          action="{% url 'agenda:topic_delete' meeting.share_code topic.pk %}"
+                          class="inline" data-confirm-form="delete-topic">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--ghost btn--sm" data-confirm="delete">Удалить</button>
+                    </form>
+                {% endif %}
+            {% endif %}
+        </span>
+    </div>
+</li>

@@ -1,0 +1,45 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}Оценить состояние — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page page--narrow">
+  <div class="form">
+    <h2 class="panel__title" style="margin-bottom:4px;">Оценить состояние</h2>
+    <p class="is-muted" style="margin-bottom:20px;">Укажи текущие условия, и мы поможем выбрать следующую задачу.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label>{{ form.energy.label }}</label>
+        {% if form.energy.help_text %}<div class="help">{{ form.energy.help_text }}</div>{% endif %}
+        <div class="radio-group">
+          {% for radio in form.energy %}
+          <label class="radio-label">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field">
+        <label>{{ form.focus.label }}</label>
+        {% if form.focus.help_text %}<div class="help">{{ form.focus.help_text }}</div>{% endif %}
+        <div class="radio-group">
+          {% for radio in form.focus %}
+          <label class="radio-label">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="field">
+        <label>{{ form.available_time.label }}</label>
+        {% if form.available_time.help_text %}<div class="help">{{ form.available_time.help_text }}</div>{% endif %}
+        <div class="radio-group">
+          {% for radio in form.available_time %}
+          <label class="radio-label">{{ radio.tag }} <span>{{ radio.choice_label }}</span></label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form__actions">
+        <button type="submit" class="btn btn--primary">Подобрать задачу</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

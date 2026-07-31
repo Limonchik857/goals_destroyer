@@ -1,0 +1,77 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Импорт задач — {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+    <a href="{% url 'tasks:project_detail' project.pk %}" class="back">← {{ project.name }}</a>
+
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h1 class="panel__title">Импорт задач из файла</h1>
+                <p class="panel__subtitle">Проект: {{ project.name }}</p>
+            </div>
+        </header>
+
+        {% if parsed_tasks %}
+            <div class="import-preview">
+                <h2 class="import-preview__title">
+                    Найдено {{ parsed_tasks|length }} {{ parsed_tasks|length|pluralize_ru:"задача,задачи,задач" }}
+                </h2>
+                <ul class="import-preview__list">
+                    {% for task in parsed_tasks %}
+                        <li class="import-preview__item">
+                            <strong>{{ task.name }}</strong>
+                            {% if task.description %}
+                                <p class="import-preview__desc">{{ task.description|truncatewords:20 }}</p>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+                <div class="import-preview__meta">
+                    Приоритет: {{ priority_label|lower }} ·
+                    {% if deadline %}
+                        Дедлайн: {{ deadline|date:"d.m.Y" }}
+                    {% else %}
+                        Без дедлайна
+                    {% endif %}
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="confirm" value="1">
+                    <div class="form__actions">
+                        <button type="submit" class="btn btn--primary">Создать {{ parsed_tasks|length }} {{ parsed_tasks|length|pluralize_ru:"задачу,задачи,задач" }}</button>
+                        <a href="{% url 'tasks:import_tasks' project.pk %}" class="btn btn--ghost">Отмена</a>
+                    </div>
+                </form>
+            </div>
+        {% else %}
+            <form method="post" enctype="multipart/form-data" class="form">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="form__group">
+                        {{ field.label_tag }}
+                        {{ field }}
+                        {% if field.help_text %}
+                            <p class="form__help">{{ field.help_text }}</p>
+                        {% endif %}
+                        {% if field.errors %}
+                            <ul class="form__errors">
+                                {% for error in field.errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+                <div class="form__actions">
+                    <button type="submit" class="btn btn--primary">Разобрать файл</button>
+                    <a href="{% url 'tasks:project_detail' project.pk %}" class="btn btn--ghost">Отмена</a>
+                </div>
+            </form>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

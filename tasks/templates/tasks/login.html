@@ -1,0 +1,32 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block content %}
+<div class="auth">
+    <div class="auth-card">
+        <h1 class="auth-card__title">Вход</h1>
+        <p class="auth-card__subtitle">Войдите, чтобы продолжить работу</p>
+
+        <form method="post" class="form form--plain">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+                <ul class="errorlist">{{ form.non_field_errors }}</ul>
+            {% endif %}
+            <div class="field">
+                <label for="{{ form.username.id_for_label }}">Электронная почта</label>
+                {{ form.username }}
+                {{ form.username.errors }}
+            </div>
+            <div class="field">
+                <label for="{{ form.password.id_for_label }}">Пароль</label>
+                {{ form.password }}
+                {{ form.password.errors }}
+            </div>
+            <button type="submit" class="btn btn--primary btn--block">Войти</button>
+        </form>
+
+        <p class="auth-card__alt">Нет аккаунта? <a href="{% url 'tasks:register' %}">Зарегистрироваться</a></p>
+    </div>
+</div>
+{% endblock %}

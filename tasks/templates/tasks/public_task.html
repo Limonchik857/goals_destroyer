@@ -1,0 +1,59 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}{{ task.name }} — шаг процесса{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <article class="detail-card">
+        <header class="detail-card__head">
+            <h1>{{ task.name }}</h1>
+            <span class="badge {% if task.is_done %}badge--done{% else %}badge--todo{% endif %}">
+                {{ task.get_status_display }}
+            </span>
+        </header>
+
+        <p class="page-desc">Вам передали шаг рабочего процесса{% if task.project %} «{{ task.project.name }}»{% endif %}. Когда сделаете — отметьте его выполненным, автор сразу увидит прогресс. Регистрация не нужна.</p>
+
+        <dl class="meta">
+            <div class="meta__row">
+                <dt>Приоритет</dt>
+                <dd>
+                    <span class="priority priority--{{ task.priority }}">{{ task.get_priority_display }}</span>
+                </dd>
+            </div>
+            <div class="meta__row">
+                <dt>Дедлайн</dt>
+                <dd>
+                    {% if task.deadline %}
+                        <span class="deadline {% if task.is_overdue %}deadline--overdue{% endif %}">
+                            {{ task.deadline|smart_deadline }}{% if task.is_overdue %} · просрочено{% endif %}
+                        </span>
+                    {% else %}
+                        <span class="is-muted">—</span>
+                    {% endif %}
+                </dd>
+            </div>
+        </dl>
+
+        <section class="detail-card__desc">
+            {% if task.description %}
+                {{ task.description|linebreaksbr }}
+            {% else %}
+                <span class="is-muted">Описания нет — уточните детали у автора.</span>
+            {% endif %}
+        </section>
+
+        <div class="detail-card__actions">
+            {% if task.is_done %}
+                <p class="public-done">✅ Шаг выполнен{% if task.completed_at %} {{ task.completed_at|date:"j E в H:i" }}{% endif %}. Спасибо!</p>
+            {% else %}
+                <form method="post" action="{% url 'tasks:public_task_complete' task.share_code %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--primary">Отметить выполненным</button>
+                </form>
+            {% endif %}
+        </div>
+    </article>
+</div>
+{% endblock %}

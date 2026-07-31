@@ -1,0 +1,41 @@
+{# Одна строка инлайн-формы этапа шаблона. Переменная: f (BoundForm). #}
+<div class="ftask">
+    {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+    <div class="field">
+        <label for="{{ f.name.id_for_label }}">Название этапа</label>
+        {{ f.name }}
+        {{ f.name.errors }}
+    </div>
+    <div class="ftask__grid">
+        <div class="field">
+            <label for="{{ f.priority.id_for_label }}">Приоритет</label>
+            {{ f.priority }}
+            {{ f.priority.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ f.difficulty.id_for_label }}">Сложность</label>
+            {{ f.difficulty }}
+            {{ f.difficulty.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ f.estimated_duration.id_for_label }}">Длительность</label>
+            {{ f.estimated_duration }}
+            {{ f.estimated_duration.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ f.deadline_offset_days.id_for_label }}">Дедлайн, дней</label>
+            {{ f.deadline_offset_days }}
+            {{ f.deadline_offset_days.errors }}
+        </div>
+        {% if f.DELETE and f.instance.pk %}
+            <div class="field ftask__delete">
+                <label for="{{ f.DELETE.id_for_label }}">{{ f.DELETE }} Удалить</label>
+            </div>
+        {% endif %}
+    </div>
+    <div class="field">
+        <label for="{{ f.description.id_for_label }}">Описание</label>
+        {{ f.description }}
+        {{ f.description.errors }}
+    </div>
+</div>

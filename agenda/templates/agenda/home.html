@@ -1,0 +1,51 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Обсуждения — goal_destroyer{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>Обсуждения</h1>
+            <p class="page-desc">Общий список тем для командного разговора. Каждый пишет, что хочет обсудить, а на встрече организатор отмечает, о чём уже поговорили. Что не успели — одной кнопкой переезжает на следующий раз. Работает по одной ссылке, регистрация не нужна.</p>
+        </div>
+    </header>
+
+    <div class="how">
+        <div class="how__step">
+            <span class="how__num">1</span>
+            <p>Создайте обсуждение и отправьте ссылку команде — участники сами напишут, что хотят обсудить.</p>
+        </div>
+        <div class="how__step">
+            <span class="how__num">2</span>
+            <p>Во время разговора отмечайте темы галочкой — обсуждённое само уходит в конец списка.</p>
+        </div>
+        <div class="how__step">
+            <span class="how__num">3</span>
+            <p>О чём не успели поговорить — перенесите на следующую встречу, и ничего не потеряется.</p>
+        </div>
+    </div>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Новое обсуждение</h2>
+        <p class="panel__desc">Название и ваше имя — темы команда добавит сама.</p>
+
+        <form method="post" novalidate class="form form--plain">
+            {% csrf_token %}
+            <div class="form-grid">
+                <div class="field field--wide">
+                    <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+                    {{ form.title }}
+                    {{ form.title.errors }}
+                </div>
+                <div class="field field--wide">
+                    <label for="{{ form.organizer.id_for_label }}">{{ form.organizer.label }}</label>
+                    {{ form.organizer }}
+                    {{ form.organizer.errors }}
+                </div>
+            </div>
+            <button type="submit" class="btn btn--primary">Создать обсуждение</button>
+        </form>
+    </section>
+</div>
+{% endblock %}

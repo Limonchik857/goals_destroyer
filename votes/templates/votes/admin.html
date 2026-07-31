@@ -1,0 +1,171 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Организатор: {{ board.title }}{% endblock %}
+
+{% block content %}
+<div class="page page--wide">
+    <header class="page-head">
+        <div>
+            <h1>{{ board.title }}</h1>
+            <p class="page-desc">Страница организатора. Сохраните её адрес — только по ней можно вести голосование.</p>
+        </div>
+        <div class="board-status">
+            <span class="phase-badge phase-badge--{{ board.phase }}">{{ board.get_phase_display }}</span>
+            {% if timer_left is not None %}
+                <span class="board-timer" data-timer-left="{{ timer_left }}">
+                    {{ timer_left|floatformat:0 }} сек
+                </span>
+            {% endif %}
+        </div>
+    </header>
+
+    {# --- Управление фазами и таймером --- #}
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Ведение голосования</h2>
+        <p class="panel__desc">Фазы идут по кругу: сбор карточек → голосование → итог. Смена фазы сбрасывает таймер.</p>
+
+        <div class="admin-row">
+            <div class="admin-row__group">
+                <span class="admin-row__label">Фаза:</span>
+                <form method="post" action="{% url 'votes:set_phase' board.admin_code %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="phase" value="collect">
+                    <button type="submit" class="btn btn--sm {% if board.is_collect %}btn--primary{% else %}btn--ghost{% endif %}">Сбор карточек</button>
+                </form>
+                <form method="post" action="{% url 'votes:set_phase' board.admin_code %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="phase" value="vote">
+                    <button type="submit" class="btn btn--sm {% if board.is_voting %}btn--primary{% else %}btn--ghost{% endif %}">Голосование</button>
+                </form>
+                <form method="post" action="{% url 'votes:set_phase' board.admin_code %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="phase" value="done">
+                    <button type="submit" class="btn btn--sm {% if board.is_done %}btn--primary{% else %}btn--ghost{% endif %}">Завершить</button>
+                </form>
+            </div>
+            <form method="post" action="{% url 'votes:set_timer' board.admin_code %}" class="admin-row__group">
+                {% csrf_token %}
+                <span class="admin-row__label">Таймер:</span>
+                <select name="minutes">
+                    <option value="0"{% if timer_left is none %} selected{% endif %}>выключен</option>
+                    <option value="5">5 минут</option>
+                    <option value="10">10 минут</option>
+                    <option value="15">15 минут</option>
+                    <option value="20">20 минут</option>
+                </select>
+                <button type="submit" class="btn btn--ghost btn--sm">Пустить</button>
+            </form>
+        </div>
+    </section>
+
+    {# --- Доска (тот же вид, что у участников, плюс удаление карточек) --- #}
+    <div class="board-cols">
+        {% for column in columns %}
+            <section class="bcol bcol--{{ column.key }}">
+                <h2 class="bcol__title">
+                    {{ column.title }}
+                    <span class="bcol__count">{{ column.cards|length }}</span>
+                </h2>
+                <ul class="bcards">
+                    {% for card in column.cards %}
+                        <li class="bcard">
+                            <p class="bcard__text">{{ card.text }}</p>
+                            <div class="bcard__foot">
+                                <span class="dot-vote dot-vote--static">● {{ card.dots }}</span>
+                                <form method="post" action="{% url 'votes:admin_card_delete' board.admin_code card.pk %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="bcard__del" title="Удалить карточку">×</button>
+                                </form>
+                            </div>
+                        </li>
+                    {% empty %}
+                        <li class="bcol-empty">Пока пусто</li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endfor %}
+    </div>
+
+    {# --- Ссылки --- #}
+    <div class="share-box">
+        <h3>Ссылки</h3>
+        <p class="share-box__hint">Участникам — первая, вам — вторая. Вторая никому не показывается.</p>
+        <div class="copy-row">
+            <input type="text" id="share-link" class="copy-row__input" value="{{ share_url }}" readonly>
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="share-link">Копировать</button>
+        </div>
+        <div class="copy-row">
+            <input type="text" id="admin-link" class="copy-row__input" value="{{ admin_url }}" readonly>
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="admin-link">Копировать</button>
+        </div>
+        <div class="share-box__actions">
+            <a href="{% url 'votes:board' board.share_code %}" class="btn btn--ghost btn--sm">Открыть вид участника</a>
+        </div>
+    </div>
+
+    {# --- Протокол --- #}
+    <section class="panel panel--pad">
+        <div class="notes-section__head">
+            <h2 class="panel__title panel__title--block">Протокол в Markdown</h2>
+            <div class="panel__head-actions">
+                <button type="button" class="btn btn--ghost btn--sm" data-copy="protocol-md">Копировать</button>
+                <a href="{% url 'votes:protocol_md' board.admin_code %}" class="btn btn--ghost btn--sm">Скачать .md</a>
+            </div>
+        </div>
+        <p class="panel__desc">Собирается автоматически: колонки по порядку, внутри — карточки по голосам.</p>
+        <textarea id="protocol-md" class="md-export" readonly rows="12">{{ protocol }}</textarea>
+    </section>
+
+    {# --- Удаление доски --- #}
+    <div class="form__delete">
+        <form method="post" action="{% url 'votes:board_delete' board.admin_code %}"
+              onsubmit="return confirm('Удалить доску со всеми карточками и голосами?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--danger">Удалить доску</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Кнопки «Копировать».
+    document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var input = document.getElementById(btn.dataset.copy);
+            if (!input) return;
+            input.select();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(input.value);
+            } else {
+                document.execCommand("copy");
+            }
+            var old = btn.textContent;
+            btn.textContent = "Скопировано!";
+            setTimeout(function () { btn.textContent = old; }, 1500);
+        });
+    });
+
+    // Обратный отсчёт таймера фазы.
+    (function () {
+        var el = document.querySelector("[data-timer-left]");
+        if (!el) return;
+        var left = parseInt(el.dataset.timerLeft, 10);
+        function tick() {
+            var m = Math.floor(left / 60), s = left % 60;
+            el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+            if (left <= 0) {
+                el.classList.add("board-timer--over");
+                el.textContent = "время вышло";
+                return;
+            }
+            left -= 1;
+            setTimeout(tick, 1000);
+        }
+        tick();
+    })();
+
+    // Автообновление каждые 15 с — видно новые карточки команды.
+    setInterval(function () { location.reload(); }, 15000);
+</script>
+{% endblock %}

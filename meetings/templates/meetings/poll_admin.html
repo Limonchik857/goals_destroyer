@@ -1,0 +1,160 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ poll.title }} — управление{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>{{ poll.title }} — управление</h1>
+            <p class="page-desc">Страница организатора. Сохраните её адрес: только отсюда можно закрыть опрос, назначить время и удалить участников. Участникам отправляйте ссылку для голосования, а не эту.</p>
+        </div>
+        <span class="badge {% if poll.is_open %}badge--todo{% else %}badge--done{% endif %}">{{ poll.get_status_display }}</span>
+    </header>
+
+    {% if poll.final_slot %}
+        {% with parts=poll.final_parts %}
+            <div class="final-banner">
+                🗓️ Назначено: <strong>{{ parts.date|date:"j E (l)" }} в {{ parts.time }}</strong>
+            </div>
+        {% endwith %}
+    {% endif %}
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Ссылки</h2>
+        <p class="panel__desc">Первую отправьте участникам, вторую храните при себе.</p>
+        <div class="copy-row">
+            <label class="copy-row__label">Для участников</label>
+            <input type="text" readonly value="{{ share_url }}" id="share-url" class="copy-row__input">
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="share-url">Скопировать</button>
+        </div>
+        <div class="copy-row">
+            <label class="copy-row__label">Для организатора</label>
+            <input type="text" readonly value="{{ admin_url }}" id="admin-url" class="copy-row__input">
+            <button type="button" class="btn btn--ghost btn--sm" data-copy="admin-url">Скопировать</button>
+        </div>
+    </section>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Голоса</h2>
+        <p class="panel__desc">Чем темнее клетка, тем больше человек могут в это время. Кликните клетку, чтобы выбрать её как время встречи, затем подтвердите.</p>
+        {% include "meetings/_grid.html" with mode="admin" %}
+
+        <form method="post" action="{% url 'meetings:finalize' poll.admin_code %}" id="finalize-form" class="finalize-bar">
+            {% csrf_token %}
+            <input type="hidden" name="slot" id="final-input" value="{{ poll.final_slot }}">
+            <button type="submit" class="btn btn--primary" id="finalize-btn" disabled>Назначить время</button>
+            {% if poll.final_slot %}
+                <button type="submit" class="btn btn--ghost" id="clear-final-btn">Снять назначение</button>
+            {% endif %}
+        </form>
+
+        {% if best %}
+            <p class="panel__desc panel__desc--top">Лучшие слоты — можно назначить в один клик:</p>
+            <ul class="best-list">
+                {% for slot in best %}
+                    <li class="best-list__item{% if slot.everyone %} best-list__item--all{% endif %}">
+                        <span class="best-list__when">{{ slot.date|date:"j E (D)" }} в {{ slot.time }}</span>
+                        <span class="best-list__who">{{ slot.count }} из {{ slot.total }}{% if slot.everyone %} — могут все 🎉{% endif %}</span>
+                        <span class="best-list__names">{{ slot.names }}</span>
+                        <form method="post" action="{% url 'meetings:finalize' poll.admin_code %}" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="slot" value="{{ slot.key }}">
+                            <button type="submit" class="btn btn--ghost btn--sm">Назначить</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty">Голосов пока нет — отправьте участникам ссылку выше.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Участники{% if participants %} ({{ participants|length }}){% endif %}</h2>
+        {% if participants %}
+            <ul class="people-list">
+                {% for person in participants %}
+                    <li class="people-list__item">
+                        <span class="people-list__name">{{ person.name }}</span>
+                        <span class="people-list__meta">{{ person.slots|length }} слот(ов) · обновлено {{ person.updated_at|date:"j E H:i" }}</span>
+                        <form method="post" action="{% url 'meetings:participant_delete' poll.admin_code person.pk %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn--danger btn--sm">Удалить</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty">Пока никого нет.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Действия</h2>
+        <p class="panel__desc">Закрытый опрос перестаёт принимать голоса, но остаётся виден участникам. Удаление — навсегда.</p>
+        <div class="actions-row">
+            <form method="post" action="{% url 'meetings:toggle_status' poll.admin_code %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--ghost">
+                    {% if poll.is_open %}Закрыть опрос{% else %}Открыть опрос{% endif %}
+                </button>
+            </form>
+            <form method="post" action="{% url 'meetings:delete' poll.admin_code %}" class="inline"
+                  onsubmit="return confirm('Удалить опрос и все голоса безвозвратно?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn--danger">Удалить опрос</button>
+            </form>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Кнопки «Скопировать» у ссылок.
+    document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+            var input = document.getElementById(btn.dataset.copy);
+            input.select();
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(input.value);
+            } else {
+                document.execCommand("copy");
+            }
+            var old = btn.textContent;
+            btn.textContent = "Скопировано!";
+            setTimeout(function () { btn.textContent = old; }, 1500);
+        });
+    });
+
+    // Выбор слота встречи кликом по сетке.
+    (function () {
+        var grid = document.querySelector('.tgrid[data-mode="admin"]');
+        var input = document.getElementById("final-input");
+        var btn = document.getElementById("finalize-btn");
+        var clearBtn = document.getElementById("clear-final-btn");
+        if (!grid || !input || !btn) return;
+
+        grid.addEventListener("click", function (e) {
+            var cell = e.target.closest(".slot");
+            if (!cell || !cell.dataset.key) return;
+            grid.querySelectorAll(".slot--pick").forEach(function (c) {
+                c.classList.remove("slot--pick");
+            });
+            cell.classList.add("slot--pick");
+            input.value = cell.dataset.key;
+            btn.disabled = false;
+            var parts = cell.dataset.key.split("T");
+            var d = parts[0].split("-");
+            btn.textContent = "Назначить " + d[2] + "." + d[1] + " в " + parts[1];
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener("click", function () {
+                input.value = "";
+            });
+        }
+    })();
+</script>
+{% endblock %}

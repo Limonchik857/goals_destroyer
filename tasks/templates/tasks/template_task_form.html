@@ -1,0 +1,49 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ form.instance.pk|yesno:"Изменение задачи,Новая задача шаблона" }}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:template_detail' template.pk %}" class="back">← К шаблону</a>
+    <h1>{{ form.instance.pk|yesno:"Изменить задачу,Новая задача шаблона" }}</h1>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        <div class="field">
+            <label for="{{ form.name.id_for_label }}">Название</label>
+            {{ form.name }}
+            {{ form.name.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.priority.id_for_label }}">Приоритет</label>
+            {{ form.priority }}
+            {{ form.priority.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.difficulty.id_for_label }}">Сложность</label>
+            {{ form.difficulty }}
+            {{ form.difficulty.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.estimated_duration.id_for_label }}">Предполагаемая длительность</label>
+            {{ form.estimated_duration }}
+            {{ form.estimated_duration.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.deadline_offset_days.id_for_label }}">Рекомендуемый дедлайн</label>
+            {{ form.deadline_offset_days }}
+            <div class="help">Через сколько дней после создания проекта наступит дедлайн задачи. Оставьте пустым — задача будет без дедлайна.</div>
+            {{ form.deadline_offset_days.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.description.id_for_label }}">Описание</label>
+            {{ form.description }}
+            {{ form.description.errors }}
+        </div>
+        <div class="form__actions">
+            <button type="submit" class="btn btn--primary">Сохранить</button>
+            <a href="{% url 'tasks:template_detail' template.pk %}" class="btn btn--ghost">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

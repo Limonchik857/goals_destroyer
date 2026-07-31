@@ -1,0 +1,29 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}Перенести задачу — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page page--narrow">
+  <div class="form">
+    <h2 class="panel__title" style="margin-bottom:4px;">Что произошло?</h2>
+    <p class="is-muted" style="margin-bottom:20px;">Задача: {{ record.task.name }}</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <div class="radio-group">
+          {% for value, label in postpone_choices %}
+          <label class="radio-label">
+            <input type="radio" name="reason" value="{{ value }}">
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="form__actions">
+        <button type="submit" class="btn btn--primary">Сохранить</button>
+        <a href="{% url 'focus:in_progress' pk=record.pk %}" class="btn btn--ghost">Вернуться</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

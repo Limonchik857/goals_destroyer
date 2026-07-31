@@ -1,0 +1,43 @@
+{# Сетка слотов: дни в колонках, время в строках. mode: vote | admin | view #}
+<div class="tgrid" data-mode="{{ mode }}">
+    <table class="slot-table">
+        <thead>
+            <tr>
+                <th class="slot-table__corner"></th>
+                {% for day in grid.days %}
+                    <th class="slot-table__day">
+                        <span class="slot-table__dow">{{ day|date:"D" }}</span>
+                        <span class="slot-table__date">{{ day|date:"j b" }}</span>
+                    </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in grid.rows %}
+                <tr>
+                    <th class="slot-table__time">{{ row.time }}</th>
+                    {% for cell in row.cells %}
+                        <td class="slot{% if cell.own %} slot--own{% endif %}{% if cell.is_final %} slot--final{% endif %}"
+                            data-key="{{ cell.key }}"
+                            data-level="{{ cell.level }}"
+                            {% if cell.names %}title="{{ cell.names }}"{% endif %}>
+                            {% if cell.count %}<span class="slot__count">{{ cell.count }}</span>{% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="grid-legend">
+    <span class="grid-legend__item"><span class="grid-legend__swatch" data-level="0"></span> никто</span>
+    <span class="grid-legend__item"><span class="grid-legend__swatch" data-level="2"></span> часть</span>
+    <span class="grid-legend__item"><span class="grid-legend__swatch" data-level="4"></span> все</span>
+    {% if mode == "vote" %}
+        <span class="grid-legend__item"><span class="grid-legend__swatch grid-legend__swatch--own"></span> мой выбор</span>
+    {% endif %}
+    {% if poll.final_slot %}
+        <span class="grid-legend__item"><span class="grid-legend__swatch grid-legend__swatch--final"></span> назначено</span>
+    {% endif %}
+</div>

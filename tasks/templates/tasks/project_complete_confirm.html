@@ -1,0 +1,41 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Завершение проекта{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:project_list' %}" class="back">← Проекты</a>
+    <div class="confirm-card">
+        <h1>Завершить проект?</h1>
+
+        {% if pending_count %}
+            <div class="warning">
+                <p>
+                    В проекте «<strong>{{ project.name }}</strong>» осталось
+                    <strong>{{ pending_count }}</strong>
+                    {{ pending_count|pluralize_ru:"невыполненная задача,невыполненные задачи,невыполненных задач" }}:
+                </p>
+                <ul class="warning__list">
+                    {% for task in pending_tasks %}
+                        <li>{{ task.name }}</li>
+                    {% endfor %}
+                </ul>
+                <p>Если продолжить, эти задачи будут закрыты автоматически.</p>
+            </div>
+        {% else %}
+            <p>Проект «<strong>{{ project.name }}</strong>» будет отмечен как завершённый.</p>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="form__actions">
+                <button type="submit" name="action" value="complete" class="btn btn--primary">
+                    {% if pending_count %}Продолжить{% else %}Завершить{% endif %}
+                </button>
+                <a href="{% url 'tasks:project_list' %}" class="btn btn--ghost">Назад</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

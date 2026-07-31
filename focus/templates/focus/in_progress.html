@@ -1,0 +1,31 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}Работа над задачей — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page page--narrow">
+  <div class="detail-card" style="text-align:center;">
+    <h2 style="font-size:20px;margin-bottom:4px;">Текущая задача</h2>
+    <p style="font-size:18px;font-weight:600;margin-bottom:16px;">{{ record.task.name }}</p>
+
+    <div class="meta" style="text-align:left;margin-bottom:20px;">
+      <div class="meta__row">
+        <dt>Начато</dt>
+        <dd>{{ record.started_at|date:"H:i" }}</dd>
+      </div>
+      <div class="meta__row">
+        <dt>Предполагаемая длительность</dt>
+        <dd>{{ record.task.get_estimated_duration_display }}</dd>
+      </div>
+    </div>
+
+    <div class="detail-card__actions" style="justify-content:center;">
+      <form method="post" action="{% url 'focus:finish_task' pk=record.pk %}" class="inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--primary">Завершить задачу</button>
+      </form>
+      <a href="{% url 'focus:postpone' pk=record.pk %}" class="btn btn--ghost">Продолжить позже</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

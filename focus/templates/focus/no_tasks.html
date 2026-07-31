@@ -1,0 +1,13 @@
+{% extends 'tasks/base.html' %}
+{% load static %}
+{% block title %}Нет задач — Фокус и энергия{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
+<div class="page page--narrow">
+  <div class="panel" style="text-align:center;padding:64px 32px;margin-top:20px;">
+    <h2 style="font-size:22px;margin-bottom:8px;">Нет активных задач</h2>
+    <p class="is-muted" style="margin-bottom:20px;">На сегодня нет незавершённых задач. Можно создать новую или использовать время для отдыха.</p>
+    <a href="{% url 'tasks:task_create' %}" class="btn btn--primary">Создать задачу</a>
+  </div>
+</div>
+{% endblock %}

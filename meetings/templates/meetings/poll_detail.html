@@ -1,0 +1,130 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ poll.title }} — голосование{% endblock %}
+
+{% block content %}
+<div class="page">
+    <header class="page-head">
+        <div>
+            <h1>{{ poll.title }}</h1>
+            <p class="page-desc">
+                Организатор: {{ poll.organizer }}.
+                {% if poll.is_open %}
+                    Отметьте клетки, когда вам удобно, впишите имя и нажмите «Сохранить». Вернувшись по этой же ссылке, свой выбор можно поменять.
+                {% else %}
+                    Опрос закрыт — голоса больше не принимаются.
+                {% endif %}
+            </p>
+            {% if poll.description %}<p class="page-desc">{{ poll.description }}</p>{% endif %}
+        </div>
+        <span class="badge {% if poll.is_open %}badge--todo{% else %}badge--done{% endif %}">{{ poll.get_status_display }}</span>
+    </header>
+
+    {% if poll.final_slot %}
+        {% with parts=poll.final_parts %}
+            <div class="final-banner">
+                🗓️ Встреча назначена: <strong>{{ parts.date|date:"j E (l)" }} в {{ parts.time }}</strong>
+            </div>
+        {% endwith %}
+    {% endif %}
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Сетка времени</h2>
+        <p class="panel__desc">
+            Чем темнее клетка, тем больше человек могут в это время — наведите курсор, чтобы увидеть имена.
+            {% if poll.is_open %}Кликайте или ведите мышью с зажатой кнопкой, чтобы закрасить свои клетки.{% endif %}
+        </p>
+
+        {% if poll.is_open %}
+            <form method="post" action="{% url 'meetings:vote' poll.share_code %}" id="vote-form" class="vote-form">
+                {% csrf_token %}
+                <input type="hidden" name="slots" id="slots-input" value="[]">
+                {% include "meetings/_grid.html" with mode="vote" %}
+                <div class="vote-form__bar">
+                    <input type="text" name="name" maxlength="60" required
+                           placeholder="Ваше имя" value="{{ mine.name|default:'' }}" class="vote-form__name">
+                    <button type="submit" class="btn btn--primary">{% if mine %}Обновить мой выбор{% else %}Сохранить{% endif %}</button>
+                </div>
+            </form>
+            {{ mine.slots|default_if_none:""|json_script:"own-slots" }}
+        {% else %}
+            {% include "meetings/_grid.html" with mode="view" %}
+        {% endif %}
+    </section>
+
+    <section class="panel panel--pad">
+        <h2 class="panel__title panel__title--block">Итоги</h2>
+        {% if best %}
+            <p class="panel__desc">Слоты, куда может больше всего людей:</p>
+            <ul class="best-list">
+                {% for slot in best %}
+                    <li class="best-list__item{% if slot.everyone %} best-list__item--all{% endif %}">
+                        <span class="best-list__when">{{ slot.date|date:"j E (D)" }} в {{ slot.time }}</span>
+                        <span class="best-list__who">{{ slot.count }} из {{ slot.total }}{% if slot.everyone %} — могут все 🎉{% endif %}</span>
+                        <span class="best-list__names">{{ slot.names }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="empty">Пока никто не проголосовал. Станьте первым!</p>
+        {% endif %}
+
+        {% if participants %}
+            <p class="panel__desc panel__desc--top">Проголосовали ({{ participants|length }}):</p>
+            <div class="chips">
+                {% for person in participants %}
+                    <span class="chip{% if mine and person.pk == mine.pk %} chip--me{% endif %}">{{ person.name }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if poll.is_open %}
+<script>
+    // Закрашивание клеток: клик переключает, зажатая кнопка «красит».
+    (function () {
+        var grid = document.querySelector('.tgrid[data-mode="vote"]');
+        var input = document.getElementById("slots-input");
+        var ownData = document.getElementById("own-slots");
+        if (!grid || !input) return;
+
+        var selected = new Set(ownData ? JSON.parse(ownData.textContent) : []);
+        var painting = false;
+        var paintOn = true;
+
+        function apply() {
+            grid.querySelectorAll(".slot").forEach(function (cell) {
+                cell.classList.toggle("slot--sel", selected.has(cell.dataset.key));
+            });
+            input.value = JSON.stringify(Array.from(selected));
+        }
+
+        function setCell(cell, on) {
+            if (!cell || !cell.dataset.key) return;
+            if (on) selected.add(cell.dataset.key);
+            else selected.delete(cell.dataset.key);
+            apply();
+        }
+
+        grid.addEventListener("mousedown", function (e) {
+            var cell = e.target.closest(".slot");
+            if (!cell) return;
+            e.preventDefault();
+            painting = true;
+            paintOn = !selected.has(cell.dataset.key);
+            setCell(cell, paintOn);
+        });
+        grid.addEventListener("mouseover", function (e) {
+            if (!painting) return;
+            setCell(e.target.closest(".slot"), paintOn);
+        });
+        document.addEventListener("mouseup", function () { painting = false; });
+
+        apply();
+    })();
+</script>
+{% endif %}
+{% endblock %}
