@@ -6,9 +6,11 @@ from django import forms
 from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
+
+from agenda.models import MeetingOutcome
 
 from .models import (
     JournalEntry,
@@ -24,6 +26,18 @@ from .services.attachment_analysis import analyze_attachment
 DEADLINE_AFTER_PROJECT_MSG = (
     "Дедлайн задачи не может быть позже дедлайна проекта."
 )
+
+
+class ISODateInput(forms.DateInput):
+    """DateInput для <input type="date">.
+
+    Браузер требует ISO (2026-08-20), а не локальный формат (20.08.2026):
+    иначе значение не отображается и не отправляется формой. Django
+    по умолчанию рендерит в локальном формате — фиксируем формат.
+    """
+
+    def __init__(self, attrs=None, **kwargs):
+        super().__init__(attrs=attrs, format="%Y-%m-%d", **kwargs)
 
 # Разрешённые расширения файлов (allow-list).
 # Файлы других типов отклоняются до сохранения.
@@ -146,6 +160,18 @@ class RegisterForm(UserCreationForm):
 class ProjectForm(forms.ModelForm):
     """Редактирование существующего проекта."""
 
+    attachments = MultipleFileField(
+        required=False,
+        label="Файлы проекта",
+        validators=[validate_attachment],
+        help_text=(
+            "Файл привязывается к проекту целиком или к конкретной задаче "
+            "проекта. Можно выбрать несколько файлов за раз, "
+            f"не более {settings.MAX_PROJECT_FILES_PER_PROJECT} на проект, "
+            "до 10 МБ каждый."
+        ),
+    )
+
     class Meta:
         model = Project
         fields = ["name", "description", "deadline"]
@@ -154,13 +180,32 @@ class ProjectForm(forms.ModelForm):
             "description": forms.Textarea(
                 attrs={"rows": 4, "placeholder": "Краткое описание проекта"}
             ),
-            "deadline": forms.DateInput(attrs={"type": "date"}),
+            "deadline": ISODateInput(attrs={"type": "date"}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["description"].required = True
         self.fields["deadline"].required = True
+
+    def clean(self):
+        cleaned = super().clean()
+        new_files = list(cleaned.get("attachments") or [])
+        if new_files and self.instance and self.instance.pk:
+            existing_count = TaskFile.objects.filter(
+                project=self.instance
+            ).count()
+            if existing_count + len(new_files) > settings.MAX_PROJECT_FILES_PER_PROJECT:
+                remaining = max(
+                    0, settings.MAX_PROJECT_FILES_PER_PROJECT - existing_count
+                )
+                self.add_error(
+                    "attachments",
+                    f"Нельзя прикрепить больше "
+                    f"{settings.MAX_PROJECT_FILES_PER_PROJECT} файлов к проекту. "
+                    f"Сейчас можно добавить ещё {remaining}.",
+                )
+        return cleaned
 
 
 class ProjectCreateForm(ProjectForm):
@@ -238,6 +283,7 @@ class TaskForm(forms.ModelForm):
             "name",
             "description",
             "project",
+            "meeting_outcome",
             "deadline",
             "priority",
             "difficulty",
@@ -251,7 +297,8 @@ class TaskForm(forms.ModelForm):
                 attrs={"rows": 4, "placeholder": "Что нужно сделать"}
             ),
             "project": forms.Select(),
-            "deadline": forms.DateInput(attrs={"type": "date"}),
+            "meeting_outcome": forms.Select(),
+            "deadline": ISODateInput(attrs={"type": "date"}),
             "priority": forms.Select(),
             "difficulty": forms.Select(),
             "estimated_duration": forms.Select(),
@@ -276,6 +323,12 @@ class TaskForm(forms.ModelForm):
         if user is not None:
             # В списке выбора только проекты текущего пользователя.
             self.fields["project"].queryset = Project.objects.filter(owner=user)
+            # Только его незакрытые итоги встреч — плюс текущий итог задачи,
+            # чтобы редактирование задачи с закрытым итогом не ломалось.
+            self.fields["meeting_outcome"].queryset = MeetingOutcome.objects.filter(
+                Q(meeting__owner=user, status=MeetingOutcome.Status.IN_PROGRESS)
+                | Q(pk=self.instance.meeting_outcome_id)
+            )
 
     def clean(self):
         cleaned = super().clean()
@@ -345,7 +398,7 @@ class ProjectTaskInlineForm(forms.ModelForm):
             "priority": forms.Select(),
             "difficulty": forms.Select(),
             "estimated_duration": forms.Select(),
-            "deadline": forms.DateInput(attrs={"type": "date"}),
+            "deadline": ISODateInput(attrs={"type": "date"}),
             "description": forms.Textarea(
                 attrs={"rows": 2, "placeholder": "Описание"}
             ),
@@ -478,7 +531,7 @@ class TemplateRunForm(forms.Form):
     deadline = forms.DateField(
         label="Дедлайн",
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=ISODateInput(attrs={"type": "date"}),
     )
     steps = forms.ModelMultipleChoiceField(
         label="Шаги этого запуска",
@@ -513,7 +566,7 @@ class TaskImportForm(forms.Form):
     default_deadline = forms.DateField(
         required=False,
         label="Дедлайн по умолчанию",
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=ISODateInput(attrs={"type": "date"}),
     )
 
     MAX_IMPORT_FILE_SIZE = 2 * 1024 * 1024  # текст на 2 МБ — это тысячи задач
@@ -565,7 +618,7 @@ class JournalEntryForm(forms.ModelForm):
                     "autocomplete": "off",
                 }
             ),
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "date": ISODateInput(attrs={"type": "date"}),
             "project": forms.Select(),
         }
 

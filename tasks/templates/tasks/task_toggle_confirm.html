@@ -1,0 +1,36 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}{% if task.is_done %}Возврат задачи{% else %}Завершение задачи{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:task_detail' task.pk %}" class="back">← К задаче</a>
+    <div class="confirm-card">
+        {% if task.is_done %}
+            <h1>Вернуть задачу в работу?</h1>
+            <p>
+                Задача «<strong>{{ task.name }}</strong>» снова станет активной:
+                она вернётся в список задач, а отметка о выполнении будет снята.
+            </p>
+        {% else %}
+            <h1>Завершить задачу?</h1>
+            <p>
+                Задача «<strong>{{ task.name }}</strong>» будет отмечена как
+                выполненная и перейдёт в завершённые.
+            </p>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <div class="form__actions">
+                <button type="submit" class="btn btn--primary">
+                    {% if task.is_done %}Вернуть в работу{% else %}Завершить{% endif %}
+                </button>
+                <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn--ghost">Назад</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -3,6 +3,7 @@ import datetime
 import secrets
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -149,6 +150,17 @@ class Task(models.Model):
         null=True,
         blank=True,
     )
+    # Итог встречи, по которому взята задача: по связанным задачам
+    # считается прогресс итога. SET_NULL — обычные задачи живут дальше,
+    # даже если итог удалён вместе со встречей.
+    meeting_outcome = models.ForeignKey(
+        "agenda.MeetingOutcome",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+        verbose_name="Итог встречи",
+    )
     deadline = models.DateField("Дедлайн", null=True, blank=True)
     priority = models.IntegerField(
         "Приоритет",
@@ -244,6 +256,7 @@ class Task(models.Model):
             owner=self.owner,
             name=self.name,
             project=self.project,
+            meeting_outcome=self.meeting_outcome,
             status=self.Status.NOT_DONE,
             recurrence=self.recurrence,
             deadline=next_deadline,
@@ -255,6 +268,7 @@ class Task(models.Model):
             name=self.name,
             description=self.description,
             project=self.project,
+            meeting_outcome=self.meeting_outcome,
             deadline=next_deadline,
             priority=self.priority,
             difficulty=self.difficulty,
@@ -297,13 +311,27 @@ class Task(models.Model):
 
 
 class TaskFile(models.Model):
-    """Файл, прикреплённый к задаче."""
+    """Файл, прикреплённый к задаче или к проекту.
+
+    Файл привязан ровно к одному месту: либо к задаче (task), либо
+    к проекту (project). Для файла проекта task=None, и наоборот.
+    """
 
     task = models.ForeignKey(
         Task,
         on_delete=models.CASCADE,
         related_name="files",
         verbose_name="Задача",
+        null=True,
+        blank=True,
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="files",
+        verbose_name="Проект",
+        null=True,
+        blank=True,
     )
     file = models.FileField("Файл", upload_to="task_files/%Y/%m/")
     original_name = models.CharField("Оригинальное имя", max_length=255)
@@ -314,11 +342,20 @@ class TaskFile(models.Model):
 
     class Meta:
         ordering = ["-uploaded_at"]
-        verbose_name = "Файл задачи"
-        verbose_name_plural = "Файлы задачи"
+        verbose_name = "Файл"
+        verbose_name_plural = "Файлы"
 
     def __str__(self):
         return self.original_name
+
+    def clean(self):
+        # Файл нельзя привязать сразу и к задаче, и к проекту,
+        # но хотя бы одно место должно быть указано.
+        if bool(self.task) == bool(self.project):
+            raise ValidationError(
+                "Файл должен быть привязан к задаче или к проекту — "
+                "не к обоим и не ни к одному."
+            )
 
     @property
     def suggested_dates(self):

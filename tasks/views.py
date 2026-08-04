@@ -2,6 +2,7 @@ import datetime
 import secrets
 from calendar import Calendar
 from collections import Counter
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib import messages
@@ -23,6 +24,9 @@ from django.views.generic import (
     UpdateView,
     View,
 )
+
+from agenda.models import MeetingOutcome
+from agenda.services import with_outcome_progress
 
 from .forms import (
     DEADLINE_AFTER_PROJECT_MSG,
@@ -51,6 +55,12 @@ from .models import (
     log_action,
 )
 from .services import gamification, journal_service, statistics
+from .services.attachment_analysis import (
+    PREVIEW_IMAGE_EXTENSIONS,
+    PREVIEW_IMAGE_MIME,
+    analyze_attachment,
+    extract_slides,
+)
 from .services.project_service import (
     save_task_formset,
     save_template_task_formset,
@@ -518,6 +528,27 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["tasks"] = self.object.tasks.all()
+        ctx["outcomes"] = with_outcome_progress(
+            self.object.outcomes.select_related(
+                "meeting", "project", "responsible_user"
+            ).filter(status=MeetingOutcome.Status.IN_PROGRESS)[:5]
+        )
+        # Файлы проекта + файлы каждой задачи (для вкладок в просмотре).
+        project_files = list(self.object.files.select_related("task"))
+        task_files = list(
+            TaskFile.objects.filter(task__project=self.object)
+            .select_related("task")
+        )
+        ctx["project_files"] = project_files
+        ctx["task_files_by_task"] = {}
+        for task_file in task_files:
+            ctx["task_files_by_task"].setdefault(task_file.task_id, []).append(
+                task_file
+            )
+        slides = {}
+        for task_file in project_files + task_files:
+            slides[task_file.pk] = extract_slides(task_file)
+        ctx["slides"] = slides
         return ctx
 
 
@@ -678,7 +709,20 @@ class ProjectCompleteView(LoginRequiredMixin, View):
 
 
 class ProjectReopenView(LoginRequiredMixin, View):
-    """Возврат завершённого проекта в активные."""
+    """Возврат завершённого проекта в активные.
+
+    GET — страница подтверждения (как у завершения), POST — действие.
+    """
+
+    def get(self, request, pk):
+        project = get_object_or_404(Project, pk=pk, owner=request.user)
+        if not project.is_completed:
+            return redirect("tasks:project_list")
+        return render(
+            request,
+            "tasks/project_reopen_confirm.html",
+            {"project": project, "next": safe_next(request, "tasks:project_list")},
+        )
 
     def post(self, request, pk):
         project = get_object_or_404(Project, pk=pk, owner=request.user)
@@ -728,6 +772,7 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx.setdefault("task_formset", self.get_task_formset())
+        ctx["project_tasks"] = []
         # Шаблон уже выбран в диалоге — показываем его вместо поля выбора.
         template_id = self.request.GET.get("template")
         selected = None
@@ -745,6 +790,8 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         return ProjectTaskFormSet(**kwargs)
 
     def post(self, request, *args, **kwargs):
+        if request.POST.get("add_task"):
+            return self.add_task_flow()
         self.object = None
         form = self.get_form()
         formset = self.get_task_formset()
@@ -757,6 +804,62 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
         return self.render_to_response(
             self.get_context_data(form=form, task_formset=formset)
         )
+
+    def add_task_flow(self):
+        """Кнопка «Создать задачу»: сохраняет проект и создаёт задачу.
+
+        Задача создаётся из последней заполненной строки задач ниже
+        (новые строки через «+ Ещё задача»), а не из полей проекта.
+        """
+        form = self.get_form()
+        if not form.is_valid():
+            self.object = None
+            return self.render_to_response(
+                self.get_context_data(
+                    form=form, task_formset=self.get_task_formset()
+                )
+            )
+        formset = self.get_task_formset()
+        formset.instance = form.instance
+        if not formset.is_valid():
+            self.object = None
+            return self.render_to_response(
+                self.get_context_data(form=form, task_formset=formset)
+            )
+        template = form.cleaned_data.get("template")
+        if template is None:
+            form.instance.owner = self.request.user
+            project = form.save()
+            log_action(self.request.user, f"Создан проект «{project.name}»")
+        else:
+            project = create_project_from_template(
+                user=self.request.user,
+                template=template,
+                name=form.cleaned_data.get("name"),
+                description=form.cleaned_data.get("description"),
+                deadline=form.cleaned_data.get("deadline"),
+            )
+            log_action(
+                self.request.user,
+                f"Создан проект «{project.name}» по шаблону «{template.name}»",
+            )
+        task_fields = task_fields_from_last_form(formset)
+        if task_fields:
+            task = Task.objects.create(
+                owner=self.request.user, project=project, **task_fields
+            )
+            log_action(self.request.user, f"Создана задача «{task.name}»")
+            messages.success(
+                self.request, f"Задача «{task.name}» создана в проекте."
+            )
+        else:
+            messages.info(
+                self.request,
+                "Проект сохранён. В последней строке задач не заполнено "
+                "название — задача не создана.",
+            )
+        save_project_attachments(self.request, form, project)
+        return redirect("tasks:project_edit", pk=project.pk)
 
     def forms_valid(self, form, formset):
         template = form.cleaned_data["template"]
@@ -780,6 +883,7 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
                 self.request.user,
                 f"Создан проект «{self.object.name}» по шаблону «{template.name}»",
             )
+        save_project_attachments(self.request, form, self.object)
         return redirect(self.get_success_url())
 
 
@@ -801,9 +905,16 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx.setdefault("task_formset", self.get_task_formset())
+        project = self.get_object()
+        ctx["project_tasks"] = list(project.tasks.all())
+        ctx["project_files"] = list(
+            project.files.all().select_related("task")
+        )
         return ctx
 
     def post(self, request, *args, **kwargs):
+        if request.POST.get("add_task"):
+            return self.add_task_flow()
         self.object = self.get_object()
         form = self.get_form()
         formset = self.get_task_formset()
@@ -816,9 +927,50 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
             self.get_context_data(form=form, task_formset=formset)
         )
 
+    def add_task_flow(self):
+        """Кнопка «Создать задачу»: обновляет проект и создаёт задачу.
+
+        Задача создаётся из последней заполненной строки задач формсета
+        (новые строки через «+ Ещё задача»), а не из полей проекта.
+        """
+        self.object = self.get_object()
+        form = self.get_form()
+        if not form.is_valid():
+            return self.render_to_response(
+                self.get_context_data(
+                    form=form, task_formset=self.get_task_formset()
+                )
+            )
+        formset = self.get_task_formset()
+        formset.instance = form.instance
+        if not formset.is_valid():
+            return self.render_to_response(
+                self.get_context_data(form=form, task_formset=formset)
+            )
+        project = form.save()
+        log_action(self.request.user, f"Изменён проект «{project.name}»")
+        task_fields = task_fields_from_last_form(formset)
+        if task_fields:
+            task = Task.objects.create(
+                owner=self.request.user, project=project, **task_fields
+            )
+            log_action(self.request.user, f"Создана задача «{task.name}»")
+            messages.success(
+                self.request, f"Задача «{task.name}» создана в проекте."
+            )
+        else:
+            messages.info(
+                self.request,
+                "Проект сохранён. В последней строке задач не заполнено "
+                "название — задача не создана.",
+            )
+        save_project_attachments(self.request, form, project)
+        return redirect("tasks:project_edit", pk=project.pk)
+
     def forms_valid(self, form, formset):
         self.object = form.save()
         save_task_formset(formset, user=self.request.user, project=self.object)
+        save_project_attachments(self.request, form, self.object)
         log_action(self.request.user, f"Изменён проект «{self.object.name}»")
         return redirect(self.get_success_url())
 
@@ -852,6 +1004,63 @@ def log_attachments(user, task, task_files):
         )
 
 
+def save_project_attachments(request, form, project):
+    """Прикрепить файлы формы проекта.
+
+    Каждый файл привязывается к задаче проекта, выбранной в select
+    (attach_target), либо к самому проекту, если задача не выбрана.
+    """
+    targets = request.POST.getlist("attach_target")
+    for index, f in enumerate(form.cleaned_data.get("attachments") or []):
+        task = None
+        if index < len(targets) and targets[index]:
+            task = Task.objects.filter(
+                pk=targets[index], project=project, owner=request.user
+            ).first()
+        task_file = TaskFile.objects.create(
+            task=task,
+            project=project if task is None else None,
+            file=f,
+            original_name=f.name,
+        )
+        analyze_attachment(task_file)
+        place = f"задаче «{task.name}»" if task else "проекту"
+        log_action(
+            request.user,
+            f"К {place} «{project.name}» прикреплён файл "
+            f"«{task_file.original_name}»",
+        )
+
+
+def task_fields_from_last_form(formset):
+    """Данные последней заполненной строки задач формсета.
+
+    Пропускает пустые строки, помеченные на удаление и уже сохранённые
+    задачи проекта — кнопка «Создать задачу» их не дублирует.
+    """
+    for form in reversed(formset.forms):
+        if not form.cleaned_data:
+            continue
+        if form.cleaned_data.get("DELETE"):
+            continue
+        if form.instance.pk:
+            continue
+        if not form.cleaned_data.get("name"):
+            continue
+        return {
+            key: form.cleaned_data[key]
+            for key in (
+                "name",
+                "description",
+                "deadline",
+                "priority",
+                "difficulty",
+                "estimated_duration",
+            )
+        }
+    return None
+
+
 class TaskCreateView(LoginRequiredMixin, CreateView):
     model = Task
     form_class = TaskForm
@@ -868,6 +1077,17 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
         project_id = self.request.GET.get("project")
         if project_id:
             initial["project"] = project_id
+        # «Создать задачу из итога встречи»: подставляем итог и его проект
+        # (проект итога важнее параметра ?project=).
+        outcome_id = self.request.GET.get("meeting_outcome")
+        if outcome_id:
+            outcome = MeetingOutcome.objects.filter(
+                pk=outcome_id, meeting__owner=self.request.user
+            ).first()
+            if outcome and outcome.is_in_progress:
+                initial["meeting_outcome"] = outcome_id
+                if outcome.project_id:
+                    initial["project"] = outcome.project_id
         # Кнопка «+ Повторяющаяся задача»: сразу выбираем «Каждые N дней»
         # с числом дней, чтобы поле интервала было видно.
         if self.request.GET.get("recurring"):
@@ -876,6 +1096,25 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
         return initial
 
     def form_valid(self, form):
+        outcome = form.cleaned_data.get("meeting_outcome")
+        if outcome is not None:
+            # Серверные проверки: итог должен быть незакрытым, своим
+            # и задача наследует его проект (нельзя подменить на другой).
+            # Текущий итог задачи не трогаем — редактирование должно
+            # переживать закрытие итога.
+            if outcome.pk != form.instance.meeting_outcome_id and not outcome.is_in_progress:
+                form.add_error("meeting_outcome", "Итог встречи уже закрыт.")
+                return self.form_invalid(form)
+            if outcome.meeting.owner_id != self.request.user.id:
+                form.add_error(
+                    "meeting_outcome", "Нельзя привязать задачу к чужому итогу."
+                )
+                return self.form_invalid(form)
+            if outcome.project_id and (
+                form.cleaned_data.get("project") != outcome.project
+            ):
+                form.add_error("project", "Задача из итога использует проект итога.")
+                return self.form_invalid(form)
         form.instance.owner = self.request.user
         response = super().form_valid(form)
         log_action(self.request.user, f"Создана задача «{self.object.name}»")
@@ -893,22 +1132,25 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
 
 
 class TaskDetailView(LoginRequiredMixin, DetailView):
+    """Просмотр задачи: слева данные, справа предпросмотр вложений."""
+
     model = Task
     context_object_name = "task"
     template_name = "tasks/task_detail.html"
 
     def get_queryset(self):
-        # prefetch_related — чтобы список файлов не стоил лишних запросов.
-        return Task.objects.filter(owner=self.request.user).prefetch_related(
-            "files"
+        return (
+            Task.objects.filter(owner=self.request.user)
+            .select_related("project", "meeting_outcome")
+            .prefetch_related("files")
         )
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        if self.object.share_code:
-            ctx["share_url"] = self.request.build_absolute_uri(
-                reverse("tasks:public_task", kwargs={"code": self.object.share_code})
-            )
+        ctx["task_files"] = list(self.object.files.all())
+        ctx["slides"] = {}
+        for task_file in ctx["task_files"]:
+            ctx["slides"][task_file.pk] = extract_slides(task_file)
         return ctx
 
 
@@ -954,7 +1196,19 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
 
 
 class TaskToggleView(LoginRequiredMixin, View):
-    """Переключение статуса задачи выполнена / не выполнена."""
+    """Смена статуса задачи: GET — страница подтверждения, POST — действие.
+
+    Страница подтверждения нужна вместо браузерного alert: по ней видно,
+    какая задача завершается, какой у неё дедлайн и что повторится копия.
+    """
+
+    def get(self, request, pk):
+        task = get_object_or_404(Task, pk=pk, owner=request.user)
+        return render(
+            request,
+            "tasks/task_toggle_confirm.html",
+            {"task": task, "next": safe_next(request, "tasks:workspace")},
+        )
 
     def post(self, request, pk):
         task = get_object_or_404(Task, pk=pk, owner=request.user)
@@ -1001,7 +1255,7 @@ class TaskShareEnableView(LoginRequiredMixin, View):
             "Ссылка готова — отправьте её исполнителю. "
             "Прежняя ссылка, если была, больше не действует.",
         )
-        return redirect("tasks:task_detail", pk=pk)
+        return redirect("tasks:workspace")
 
 
 class TaskShareDisableView(LoginRequiredMixin, View):
@@ -1011,7 +1265,7 @@ class TaskShareDisableView(LoginRequiredMixin, View):
         task.save(update_fields=["share_code"])
         log_action(request.user, f"Отключена публичная ссылка на задачу «{task.name}»")
         messages.success(request, "Публичная ссылка отключена.")
-        return redirect("tasks:task_detail", pk=pk)
+        return redirect("tasks:workspace")
 
 
 class PublicTaskView(View):
@@ -1080,6 +1334,28 @@ class TaskFileDownloadView(LoginRequiredMixin, View):
         )
 
 
+class TaskFilePreviewView(LoginRequiredMixin, View):
+    """Inline-просмотр безопасных вложений (изображений) на странице задачи.
+
+    Только картинки: html/svg и прочие исполняемые типы остаются в
+    режиме скачивания (TaskFileDownloadView).
+    """
+
+    def get(self, request, pk, file_pk):
+        task_file = get_owned_task_file(request.user, pk, file_pk)
+        extension = Path(task_file.original_name).suffix.lower()
+        content_type = PREVIEW_IMAGE_MIME.get(extension)
+        if extension not in PREVIEW_IMAGE_EXTENSIONS or not content_type:
+            raise Http404
+        try:
+            handle = task_file.file.open("rb")
+        except OSError:
+            raise Http404("Файл не найден в хранилище.")
+        return FileResponse(
+            handle, content_type=content_type, filename=task_file.original_name
+        )
+
+
 class TaskFileApplyDeadlineView(LoginRequiredMixin, View):
     """Поставить задаче дедлайн, извлечённый из прикреплённого файла."""
 
@@ -1108,7 +1384,7 @@ class TaskFileApplyDeadlineView(LoginRequiredMixin, View):
             messages.success(
                 request, f"Дедлайн установлен: {deadline:%d.%m.%Y}"
             )
-        return redirect("tasks:task_detail", pk=pk)
+        return redirect(safe_next(request, "tasks:workspace"))
 
 
 class TaskFileCreateTasksView(LoginRequiredMixin, View):
@@ -1154,7 +1430,7 @@ class TaskFileCreateTasksView(LoginRequiredMixin, View):
                 if index not in chosen
             ]
             task_file.save(update_fields=["analysis"])
-        return redirect("tasks:task_detail", pk=pk)
+        return redirect(safe_next(request, "tasks:workspace"))
 
 
 class TaskFileDeleteView(LoginRequiredMixin, View):
@@ -1169,7 +1445,127 @@ class TaskFileDeleteView(LoginRequiredMixin, View):
             request.user,
             f"Из задачи «{task_name}» удалён файл «{name}»",
         )
-        return redirect("tasks:task_detail", pk=pk)
+        return redirect(safe_next(request, "tasks:workspace"))
+
+
+# --- Файлы проекта ---
+
+
+def get_owned_project_file(user, project_pk, file_pk):
+    """Файл проекта текущего пользователя, иначе 404."""
+    return get_object_or_404(
+        TaskFile,
+        pk=file_pk,
+        project__pk=project_pk,
+        project__owner=user,
+        task__isnull=True,
+    )
+
+
+class ProjectFileDownloadView(LoginRequiredMixin, View):
+    """Отдать файл проекта владельцу (как TaskFileDownloadView)."""
+
+    def get(self, request, pk, file_pk):
+        task_file = get_owned_project_file(request.user, pk, file_pk)
+        try:
+            handle = task_file.file.open("rb")
+        except OSError:
+            raise Http404("Файл не найден в хранилище.")
+        return FileResponse(
+            handle, as_attachment=True, filename=task_file.original_name
+        )
+
+
+class ProjectFilePreviewView(LoginRequiredMixin, View):
+    """Inline-просмотр изображений, прикреплённых к проекту."""
+
+    def get(self, request, pk, file_pk):
+        task_file = get_owned_project_file(request.user, pk, file_pk)
+        extension = Path(task_file.original_name).suffix.lower()
+        content_type = PREVIEW_IMAGE_MIME.get(extension)
+        if extension not in PREVIEW_IMAGE_EXTENSIONS or not content_type:
+            raise Http404
+        try:
+            handle = task_file.file.open("rb")
+        except OSError:
+            raise Http404("Файл не найден в хранилище.")
+        return FileResponse(
+            handle, content_type=content_type, filename=task_file.original_name
+        )
+
+
+class ProjectFileApplyDeadlineView(LoginRequiredMixin, View):
+    """Поставить дедлайн проекта, извлечённый из файла проекта."""
+
+    def post(self, request, pk, file_pk):
+        task_file = get_owned_project_file(request.user, pk, file_pk)
+        project = task_file.project
+        value = request.POST.get("date", "")
+        # Принимаем только даты, реально найденные в этом файле.
+        if value not in (task_file.analysis or {}).get("dates", []):
+            raise Http404
+        deadline = datetime.date.fromisoformat(value)
+        project.deadline = deadline
+        project.save(update_fields=["deadline"])
+        log_action(
+            request.user,
+            f"Проекту «{project.name}» установлен дедлайн "
+            f"{deadline:%d.%m.%Y} из файла «{task_file.original_name}»",
+        )
+        messages.success(
+            request, f"Дедлайн проекта установлен: {deadline:%d.%m.%Y}"
+        )
+        return redirect("tasks:project_detail", pk=project.pk)
+
+
+class ProjectFileCreateTasksView(LoginRequiredMixin, View):
+    """Создать задачи проекта из пунктов списка в файле проекта."""
+
+    def post(self, request, pk, file_pk):
+        task_file = get_owned_project_file(request.user, pk, file_pk)
+        project = task_file.project
+        available = task_file.suggested_items
+        chosen = {
+            int(index)
+            for index in request.POST.getlist("items")
+            if index.isdigit() and int(index) < len(available)
+        }
+        names = [available[index] for index in sorted(chosen)]
+        for name in names:
+            Task.objects.create(owner=request.user, project=project, name=name)
+        if names:
+            log_action(
+                request.user,
+                f"Из файла «{task_file.original_name}» создано "
+                f"{len(names)} задач проекта «{project.name}»",
+            )
+            messages.success(
+                request, f"Создано задач в проекте: {len(names)}"
+            )
+            # Использованные пункты второй раз не предлагаем.
+            task_file.analysis["items"] = [
+                item
+                for index, item in enumerate(available)
+                if index not in chosen
+            ]
+            task_file.save(update_fields=["analysis"])
+        return redirect("tasks:project_detail", pk=project.pk)
+
+
+class ProjectFileDeleteView(LoginRequiredMixin, View):
+    """Удалить файл, привязанный к проекту."""
+
+    def post(self, request, pk, file_pk):
+        task_file = get_owned_project_file(request.user, pk, file_pk)
+        name = task_file.original_name
+        project_name = task_file.project.name
+        project_pk = task_file.project.pk
+        task_file.delete()  # сигнал post_delete уберёт файл из media/
+        log_action(
+            request.user,
+            f"Из проекта «{project_name}» удалён файл «{name}»",
+        )
+        return redirect("tasks:project_detail", pk=project_pk)
 
 
 # --- Заметки ---

@@ -65,6 +65,102 @@ class Meeting(models.Model):
         return self.phase == self.Phase.DONE
 
 
+class MeetingOutcome(models.Model):
+    """Итог встречи: что решили сделать после обсуждения.
+
+    Итог живёт отдельной жизнью: к нему привязываются обычные задачи
+    (Task.meeting_outcome), по которым динамически считается прогресс.
+    Завершить итог можно только когда все связанные задачи выполнены;
+    отмена возможна всегда, но с обязательной причиной.
+    """
+
+    class Status(models.TextChoices):
+        IN_PROGRESS = "in_progress", "В работе"
+        COMPLETED = "completed", "Выполнен"
+        CANCELLED = "cancelled", "Отменён"
+
+    meeting = models.ForeignKey(
+        Meeting,
+        on_delete=models.CASCADE,
+        related_name="outcomes",
+        verbose_name="Встреча",
+    )
+    project = models.ForeignKey(
+        "tasks.Project",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="outcomes",
+        verbose_name="Проект",
+    )
+    title = models.CharField("Название", max_length=255)
+    description = models.TextField("Описание", blank=True)
+    responsible_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Ответственный",
+    )
+    status = models.CharField(
+        "Статус",
+        max_length=20,
+        choices=Status.choices,
+        default=Status.IN_PROGRESS,
+    )
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+    completed_at = models.DateTimeField("Время выполнения", null=True, blank=True)
+    cancelled_at = models.DateTimeField("Время отмены", null=True, blank=True)
+    cancellation_reason = models.TextField("Причина отмены", blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Итог встречи"
+        verbose_name_plural = "Итоги встреч"
+
+    def __str__(self):
+        return self.title
+
+    @property
+    def is_in_progress(self):
+        return self.status == self.Status.IN_PROGRESS
+
+    @property
+    def is_completed(self):
+        return self.status == self.Status.COMPLETED
+
+    @property
+    def is_cancelled(self):
+        return self.status == self.Status.CANCELLED
+
+    @property
+    def progress(self):
+        """Прогресс по связанным задачам: {done, total, percent}.
+
+        Динамический расчёт: статусы задач — единственный источник
+        правды, поэтому итог всегда актуален без ручных обновлений.
+        Списки аннотируют queryset (with_outcome_progress), чтобы
+        не делать по два запроса на карточку.
+        """
+        from tasks.models import Task
+
+        total = getattr(self, "total_tasks", None)
+        if total is None:
+            total = self.tasks.count()
+            done = self.tasks.filter(status=Task.Status.DONE).count()
+        else:
+            done = self.done_tasks or 0
+        percent = round(done * 100 / total) if total else 0
+        return {"done": done, "total": total, "percent": percent}
+
+    @property
+    def can_complete(self):
+        """Можно ли зафиксировать выполнение: есть задачи и все выполнены."""
+        total = self.tasks.count()
+        return bool(total) and all(t.is_done for t in self.tasks.only("status"))
+
+
 class Topic(models.Model):
     """Один пункт обсуждения. Автор анонимен: различаем по session-токену,
     чтобы каждый мог удалить только свою тему (в фазе сбора).

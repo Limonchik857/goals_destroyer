@@ -85,7 +85,6 @@ class SmokeTest(TestCase):
             reverse("tasks:project_list"),
             reverse("tasks:project_detail", kwargs={"pk": self.project.pk}),
             reverse("tasks:project_complete", kwargs={"pk": self.project.pk}),
-            reverse("tasks:task_detail", kwargs={"pk": self.task_active.pk}),
             reverse("tasks:task_create"),
             reverse("tasks:task_edit", kwargs={"pk": self.task_active.pk}),
             reverse("tasks:stats"),
@@ -162,7 +161,7 @@ class SmokeTest(TestCase):
         r = self.client.get(
             reverse("tasks:project_detail", kwargs={"pk": self.project.pk})
         )
-        self.assertContains(r, "Проект: Proj")
+        self.assertContains(r, "panel__title\">Proj")
         self.assertContains(r, "← Все проекты")
         # На странице проекта видны и активные, и завершённые задачи.
         self.assertContains(r, self.task_active.name)
@@ -1393,9 +1392,7 @@ class TaskFileTest(TestCase):
                 kwargs={"pk": task.pk, "file_pk": task_file.pk},
             )
         )
-        self.assertRedirects(
-            r, reverse("tasks:task_detail", kwargs={"pk": task.pk})
-        )
+        self.assertRedirects(r, reverse("tasks:workspace"))
         self.assertFalse(task.files.exists())
         self.assertFalse(os.path.exists(path), "файл остался на диске")
         self.assertTrue(
@@ -1423,24 +1420,7 @@ class TaskFileTest(TestCase):
         self.assertFalse(TaskFile.objects.exists())
         self.assertFalse(os.path.exists(path), "файл остался на диске")
 
-    # --- Страница задачи ---
-
-    def test_task_detail_lists_files(self):
-        task, task_file = self.make_task_with_file("смета.txt")
-        r = self.client.get(reverse("tasks:task_detail", kwargs={"pk": task.pk}))
-        self.assertContains(r, "смета.txt")
-        self.assertContains(
-            r,
-            reverse(
-                "tasks:task_file_download",
-                kwargs={"pk": task.pk, "file_pk": task_file.pk},
-            ),
-        )
-
-    def test_task_detail_without_files(self):
-        task = Task.objects.create(owner=self.user, name="Пустая")
-        r = self.client.get(reverse("tasks:task_detail", kwargs={"pk": task.pk}))
-        self.assertContains(r, "Файлы не прикреплены")
+    # --- Страница задачи (удалена) ---
 
     def test_task_form_has_multiple_file_input(self):
         r = self.client.get(reverse("tasks:task_create"))
@@ -1529,9 +1509,9 @@ class AttachmentAnalysisTest(TestCase):
             ["Позвонить", "Написать", "Отправить", "Забрать"],
         )
 
-    # --- Загрузка и страница задачи ---
+    # --- Загрузка файлов ---
 
-    def test_upload_stores_analysis_and_shows_suggestions(self):
+    def test_upload_stores_analysis(self):
         task, task_file = self.create_task_with_txt(
             f"Дедлайн: {self.future:%d.%m.%Y}\n- [ ] Собрать данные\n"
         )
@@ -1539,10 +1519,7 @@ class AttachmentAnalysisTest(TestCase):
             task_file.analysis,
             {"dates": [self.future.isoformat()], "items": ["Собрать данные"]},
         )
-        r = self.client.get(reverse("tasks:task_detail", kwargs={"pk": task.pk}))
-        self.assertContains(r, "Найдено в «план.txt»")
-        self.assertContains(r, f"{self.future:%d.%m.%Y}")
-        self.assertContains(r, "Собрать данные")
+        self.assertIsNotNone(task_file.analysis)
 
     def test_unsupported_file_has_no_analysis(self):
         self.client.post(
@@ -1553,10 +1530,6 @@ class AttachmentAnalysisTest(TestCase):
         )
         task_file = TaskFile.objects.get()
         self.assertIsNone(task_file.analysis)
-        r = self.client.get(
-            reverse("tasks:task_detail", kwargs={"pk": task_file.task_id})
-        )
-        self.assertNotContains(r, "Найдено в")
 
     def test_corrupt_pdf_does_not_break_upload(self):
         r = self.client.post(
@@ -1604,9 +1577,7 @@ class AttachmentAnalysisTest(TestCase):
             self.apply_deadline_url(task_file),
             {"date": self.future.isoformat()},
         )
-        self.assertRedirects(
-            r, reverse("tasks:task_detail", kwargs={"pk": task.pk})
-        )
+        self.assertRedirects(r, reverse("tasks:workspace"))
         task.refresh_from_db()
         self.assertEqual(task.deadline, self.future)
         self.assertTrue(
@@ -2080,7 +2051,7 @@ class RedirectSafetyTest(TestCase):
         self.assertEqual(r["Location"], reverse("tasks:workspace"))
 
     def test_toggle_keeps_internal_next(self):
-        target = reverse("tasks:task_detail", kwargs={"pk": self.task.pk})
+        target = reverse("tasks:overdue_tasks")
         r = self.client.post(
             reverse("tasks:task_toggle", kwargs={"pk": self.task.pk}),
             {"next": target},
@@ -2234,6 +2205,622 @@ class TemplateRunTest(TestCase):
         self.assertContains(r, "width: 50%")
 
 
+class TaskDetailViewTest(TestCase):
+    """Просмотр задачи: доступ, данные слева, файлы и слайды справа."""
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.user = User.objects.create_user("u", password="p")
+        self.other = User.objects.create_user("v", password="p")
+        self.client.force_login(self.user)
+
+    def make_task(self, **extra):
+        task = Task.objects.create(owner=self.user, name="Задача", **extra)
+        return task
+
+    def make_file(self, task, name="doc.txt", content=b"data"):
+        return TaskFile.objects.create(
+            task=task,
+            file=SimpleUploadedFile(name, content, content_type="text/plain"),
+            original_name=name,
+        )
+
+    def detail_url(self, task):
+        return reverse("tasks:task_detail", kwargs={"pk": task.pk})
+
+    def test_owner_can_open_task_page(self):
+        task = self.make_task(description="Описание задачи")
+        r = self.client.get(self.detail_url(task))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Задача")
+        self.assertContains(r, "Описание задачи")
+
+    def test_foreign_user_gets_404(self):
+        task = self.make_task()
+        self.client.force_login(self.other)
+        r = self.client.get(self.detail_url(task))
+        self.assertEqual(r.status_code, 404)
+
+    def test_anonymous_redirected_to_login(self):
+        self.client.logout()
+        task = self.make_task()
+        r = self.client.get(self.detail_url(task))
+        self.assertEqual(r.status_code, 302)
+
+    def test_page_shows_files_and_download_button(self):
+        task = self.make_task()
+        self.make_file(task, name="отчёт.txt", content=b"hello")
+        r = self.client.get(self.detail_url(task))
+        self.assertContains(r, "отчёт.txt")
+        self.assertContains(r, "Скачать")
+
+    def test_text_file_split_into_slides_by_separator(self):
+        task = self.make_task()
+        content = "Слайд один\n\n---\n\nСлайд два\n\n---\n\nСлайд три".encode()
+        self.make_file(task, name="презентация.md", content=content)
+        r = self.client.get(self.detail_url(task))
+        self.assertContains(r, "Слайд один")
+        self.assertContains(r, "Слайд два")
+        self.assertContains(r, "Слайд три")
+        self.assertContains(r, "data-slide=", count=3)
+        self.assertContains(r, "data-current")
+
+    def test_text_file_without_separator_is_one_slide(self):
+        task = self.make_task()
+        self.make_file(task, name="заметки.txt", content="один\nдва\nтри".encode())
+        r = self.client.get(self.detail_url(task))
+        self.assertContains(r, "один")
+        self.assertContains(r, "три")
+        self.assertNotContains(r, "file-view__counter")
+
+    def test_unsupported_file_shows_empty_body(self):
+        task = self.make_task()
+        self.make_file(task, name="вирус.exe", content=b"MZ")
+        r = self.client.get(self.detail_url(task))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "вирус.exe")
+
+    def test_image_file_uses_preview_url(self):
+        task = self.make_task()
+        self.make_file(task, name="картинка.png", content=b"\x89PNG")
+        r = self.client.get(self.detail_url(task))
+        self.assertContains(r, f"/tasks/{task.pk}/files/1/preview/")
+        self.assertContains(r, "file-view__image")
+
+    def test_preview_endpoint_serves_image_inline(self):
+        task = self.make_task()
+        task_file = self.make_file(task, name="картинка.png", content=b"\x89PNGdata")
+        r = self.client.get(
+            reverse(
+                "tasks:task_file_preview",
+                kwargs={"pk": task.pk, "file_pk": task_file.pk},
+            )
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r["Content-Type"], "image/png")
+        self.assertNotIn("attachment", r["Content-Disposition"])
+        self.assertEqual(b"".join(r.streaming_content), b"\x89PNGdata")
+
+    def test_preview_endpoint_blocks_non_images(self):
+        task = self.make_task()
+        task_file = self.make_file(task, name="заметки.txt")
+        r = self.client.get(
+            reverse(
+                "tasks:task_file_preview",
+                kwargs={"pk": task.pk, "file_pk": task_file.pk},
+            )
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_edit_link_goes_to_detail(self):
+        task = self.make_task()
+        r = self.client.get(self.detail_url(task))
+        self.assertContains(r, "Изменить")
+
+
+class ProjectFileTest(TestCase):
+    """Файлы проекта: прикрепление в форме, просмотр, действия с файлами."""
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.user = User.objects.create_user("u", password="p")
+        self.other = User.objects.create_user("v", password="p")
+        self.client.force_login(self.user)
+
+    def upload(self, name, content=b"data"):
+        return SimpleUploadedFile(name, content, content_type="text/plain")
+
+    def make_project(self, **extra):
+        defaults = {
+            "name": "Проект",
+            "description": "Описание",
+            "deadline": timezone.localdate() + timezone.timedelta(days=30),
+        }
+        defaults.update(extra)
+        return Project.objects.create(owner=self.user, **defaults)
+
+    def project_payload(self, **extra):
+        """Минимальный валидный POST для формы проекта (без задач)."""
+        payload = {
+            "name": "Проект",
+            "description": "Описание",
+            "deadline": (
+                timezone.localdate() + timezone.timedelta(days=30)
+            ).isoformat(),
+            "tasks-TOTAL_FORMS": "0",
+            "tasks-INITIAL_FORMS": "0",
+            "tasks-MIN_NUM_FORMS": "0",
+            "tasks-MAX_NUM_FORMS": "1000",
+        }
+        payload.update(extra)
+        return payload
+
+    # --- Прикрепление в форме проекта ---
+
+    def test_create_project_attaches_file_to_project(self):
+        r = self.client.post(
+            reverse("tasks:project_create"),
+            self.project_payload(
+                name="Проект с файлом",
+                attachments=[self.upload("doc.txt")],
+                attach_target=[""],
+            ),
+        )
+        self.assertEqual(r.status_code, 302)
+        project = Project.objects.get(name="Проект с файлом")
+        task_file = project.files.get()
+        self.assertIsNone(task_file.task)
+        self.assertEqual(task_file.project, project)
+        self.assertEqual(task_file.original_name, "doc.txt")
+
+    def test_edit_project_binds_file_to_task(self):
+        project = self.make_project()
+        task = Task.objects.create(
+            owner=self.user, project=project, name="Задача проекта"
+        )
+        payload = self.project_payload(
+            attachments=[self.upload("doc.txt")],
+            attach_target=[str(task.pk)],
+            **{
+                "tasks-TOTAL_FORMS": "1",
+                "tasks-INITIAL_FORMS": "1",
+                "tasks-0-id": str(task.pk),
+                "tasks-0-name": "Задача проекта",
+                "tasks-0-deadline": "",
+                "tasks-0-description": "",
+                "tasks-0-priority": Task.Priority.LOW,
+                "tasks-0-difficulty": Task.Difficulty.MEDIUM,
+                "tasks-0-estimated_duration": Task.EstimatedDuration.UP_TO_30,
+            },
+        )
+        r = self.client.post(
+            reverse("tasks:project_edit", kwargs={"pk": project.pk}), payload
+        )
+        self.assertEqual(r.status_code, 302)
+        task_file = TaskFile.objects.get()
+        self.assertEqual(task_file.task, task)
+        self.assertIsNone(task_file.project)
+
+    def test_edit_project_file_without_target_stays_on_project(self):
+        project = self.make_project()
+        task = Task.objects.create(
+            owner=self.user, project=project, name="Задача проекта"
+        )
+        payload = self.project_payload(
+            attachments=[self.upload("doc.txt")],
+            attach_target=[""],
+            **{
+                "tasks-TOTAL_FORMS": "1",
+                "tasks-INITIAL_FORMS": "1",
+                "tasks-0-id": str(task.pk),
+                "tasks-0-name": "Задача проекта",
+                "tasks-0-deadline": "",
+                "tasks-0-description": "",
+                "tasks-0-priority": Task.Priority.LOW,
+                "tasks-0-difficulty": Task.Difficulty.MEDIUM,
+                "tasks-0-estimated_duration": Task.EstimatedDuration.UP_TO_30,
+            },
+        )
+        self.client.post(
+            reverse("tasks:project_edit", kwargs={"pk": project.pk}), payload
+        )
+        task_file = TaskFile.objects.get()
+        self.assertIsNone(task_file.task)
+        self.assertEqual(task_file.project, project)
+
+    def test_attach_target_from_foreign_task_ignored(self):
+        project = self.make_project()
+        foreign = Task.objects.create(owner=self.other, name="Чужой")
+        r = self.client.post(
+            reverse("tasks:project_create"),
+            self.project_payload(
+                name="Проект2",
+                attachments=[self.upload("doc.txt")],
+                attach_target=[str(foreign.pk)],
+            ),
+        )
+        self.assertEqual(r.status_code, 302)
+        project2 = Project.objects.get(name="Проект2")
+        task_file = project2.files.get()
+        self.assertIsNone(task_file.task)
+        self.assertEqual(task_file.project, project2)
+
+    # --- Просмотр проекта ---
+
+    def test_project_detail_shows_project_files_tab(self):
+        project = self.make_project()
+        TaskFile.objects.create(
+            project=project,
+            file=self.upload("proj.txt"),
+            original_name="proj.txt",
+        )
+        r = self.client.get(
+            reverse("tasks:project_detail", kwargs={"pk": project.pk})
+        )
+        self.assertContains(r, "proj.txt")
+        self.assertContains(r, "Файлы проекта")
+
+    def test_project_detail_shows_task_files_tab(self):
+        project = self.make_project()
+        task = Task.objects.create(
+            owner=self.user, project=project, name="Задача с файлом"
+        )
+        TaskFile.objects.create(
+            task=task,
+            file=self.upload("task.txt"),
+            original_name="task.txt",
+        )
+        r = self.client.get(
+            reverse("tasks:project_detail", kwargs={"pk": project.pk})
+        )
+        self.assertContains(r, "task.txt")
+        self.assertContains(
+            r, f'data-file-tab="task-{task.pk}"'
+        )
+
+    # --- Действия с файлами проекта ---
+
+    def test_project_file_apply_deadline(self):
+        project = self.make_project(deadline=None)
+        task_file = TaskFile.objects.create(
+            project=project,
+            file=self.upload("doc.txt"),
+            original_name="doc.txt",
+            analysis={"dates": ["2026-12-01"], "items": []},
+        )
+        r = self.client.post(
+            reverse(
+                "tasks:project_file_apply_deadline",
+                kwargs={"pk": project.pk, "file_pk": task_file.pk},
+            ),
+            {"date": "2026-12-01"},
+        )
+        self.assertEqual(r.status_code, 302)
+        project.refresh_from_db()
+        self.assertEqual(project.deadline, datetime.date(2026, 12, 1))
+
+    def test_project_file_apply_deadline_ignores_foreign_dates(self):
+        project = self.make_project(deadline=None)
+        task_file = TaskFile.objects.create(
+            project=project,
+            file=self.upload("doc.txt"),
+            original_name="doc.txt",
+            analysis={"dates": ["2026-12-01"], "items": []},
+        )
+        r = self.client.post(
+            reverse(
+                "tasks:project_file_apply_deadline",
+                kwargs={"pk": project.pk, "file_pk": task_file.pk},
+            ),
+            {"date": "2030-01-01"},
+        )
+        self.assertEqual(r.status_code, 404)
+        project.refresh_from_db()
+        self.assertIsNone(project.deadline)
+
+    def test_project_file_create_tasks(self):
+        project = self.make_project()
+        task_file = TaskFile.objects.create(
+            project=project,
+            file=self.upload("doc.txt"),
+            original_name="doc.txt",
+            analysis={"dates": [], "items": ["Пункт 1", "Пункт 2"]},
+        )
+        r = self.client.post(
+            reverse(
+                "tasks:project_file_create_tasks",
+                kwargs={"pk": project.pk, "file_pk": task_file.pk},
+            ),
+            {"items": ["0", "1"]},
+        )
+        self.assertEqual(r.status_code, 302)
+        names = list(
+            project.tasks.values_list("name", flat=True).order_by("name")
+        )
+        self.assertEqual(names, ["Пункт 1", "Пункт 2"])
+
+    def test_project_file_delete(self):
+        project = self.make_project()
+        task_file = TaskFile.objects.create(
+            project=project,
+            file=self.upload("doc.txt"),
+            original_name="doc.txt",
+        )
+        r = self.client.post(
+            reverse(
+                "tasks:project_file_delete",
+                kwargs={"pk": project.pk, "file_pk": task_file.pk},
+            ),
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertFalse(TaskFile.objects.filter(pk=task_file.pk).exists())
+
+    def test_foreign_user_cannot_download_project_file(self):
+        project = self.make_project()
+        task_file = TaskFile.objects.create(
+            project=project,
+            file=self.upload("doc.txt"),
+            original_name="doc.txt",
+        )
+        self.client.force_login(self.other)
+        r = self.client.get(
+            reverse(
+                "tasks:project_file_download",
+                kwargs={"pk": project.pk, "file_pk": task_file.pk},
+            )
+        )
+        self.assertEqual(r.status_code, 404)
+        r = self.client.post(
+            reverse(
+                "tasks:project_file_delete",
+                kwargs={"pk": project.pk, "file_pk": task_file.pk},
+            ),
+        )
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(TaskFile.objects.filter(pk=task_file.pk).exists())
+
+
+class TaskToggleConfirmTest(TestCase):
+    """Страницы подтверждения завершения / возврата задачи."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("u", password="p")
+        self.client.force_login(self.user)
+        self.task = Task.objects.create(
+            owner=self.user, name="Задача", description="Описание"
+        )
+
+    def test_get_confirm_page_for_completing(self):
+        r = self.client.get(
+            reverse("tasks:task_toggle", kwargs={"pk": self.task.pk})
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Завершить задачу?")
+        self.assertContains(r, "Задача")
+
+    def test_get_confirm_page_for_returning(self):
+        self.task.status = Task.Status.DONE
+        self.task.save()
+        r = self.client.get(
+            reverse("tasks:task_toggle", kwargs={"pk": self.task.pk})
+        )
+        self.assertContains(r, "Вернуть задачу в работу?")
+
+    def test_get_confirm_page_foreign_task_404(self):
+        other = User.objects.create_user("v", password="p")
+        self.client.force_login(other)
+        r = self.client.get(
+            reverse("tasks:task_toggle", kwargs={"pk": self.task.pk})
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_post_still_toggles(self):
+        r = self.client.post(
+            reverse("tasks:task_toggle", kwargs={"pk": self.task.pk}),
+            {"next": reverse("tasks:workspace")},
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertTrue(Task.objects.get(pk=self.task.pk).is_done)
+
+
+class ProjectReopenConfirmTest(TestCase):
+    """Страница подтверждения возврата завершённого проекта."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("u", password="p")
+        self.client.force_login(self.user)
+
+    def test_get_confirm_page(self):
+        project = Project.objects.create(
+            owner=self.user,
+            name="Проект",
+            description="Описание",
+            deadline=timezone.localdate(),
+            status=Project.Status.COMPLETED,
+        )
+        r = self.client.get(
+            reverse("tasks:project_reopen", kwargs={"pk": project.pk})
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Вернуть проект в работу?")
+
+    def test_get_confirm_page_for_active_project_redirects(self):
+        project = Project.objects.create(
+            owner=self.user,
+            name="Проект",
+            description="Описание",
+            deadline=timezone.localdate(),
+        )
+        r = self.client.get(
+            reverse("tasks:project_reopen", kwargs={"pk": project.pk})
+        )
+        self.assertEqual(r.status_code, 302)
+
+    def test_post_reopens(self):
+        project = Project.objects.create(
+            owner=self.user,
+            name="Проект",
+            description="Описание",
+            deadline=timezone.localdate(),
+            status=Project.Status.COMPLETED,
+        )
+        r = self.client.post(
+            reverse("tasks:project_reopen", kwargs={"pk": project.pk})
+        )
+        self.assertEqual(r.status_code, 302)
+        project.refresh_from_db()
+        self.assertFalse(project.is_completed)
+
+
+class AddTaskFromProjectFormTest(TestCase):
+    """Кнопка «Создать задачу» в форме проекта."""
+
+    def setUp(self):
+        self.user = User.objects.create_user("u", password="p")
+        self.client.force_login(self.user)
+
+    def payload(self, **extra):
+        payload = {
+            "name": "Новый проект",
+            "description": "Описание",
+            "deadline": (
+                timezone.localdate() + timezone.timedelta(days=30)
+            ).isoformat(),
+            "add_task": "1",
+            "tasks-TOTAL_FORMS": "0",
+            "tasks-INITIAL_FORMS": "0",
+            "tasks-MIN_NUM_FORMS": "0",
+            "tasks-MAX_NUM_FORMS": "1000",
+        }
+        payload.update(extra)
+        return payload
+
+    def task_row(self, index=0, **fields):
+        """Строка формсета задач с заполненным названием."""
+        row = {
+            "id": "",
+            "name": "Задача из строки",
+            "description": "Описание задачи",
+            "deadline": "",
+            "priority": "0",
+            "difficulty": "1",
+            "estimated_duration": "1",
+        }
+        row.update(fields)
+        return {f"tasks-{index}-{key}": value for key, value in row.items()}
+
+    def test_create_project_via_add_task_button(self):
+        r = self.client.post(
+            reverse("tasks:project_create"),
+            self.payload(**{
+                "tasks-TOTAL_FORMS": "1",
+                **self.task_row(),
+            }),
+        )
+        project = Project.objects.get(name="Новый проект")
+        self.assertRedirects(
+            r, reverse("tasks:project_edit", kwargs={"pk": project.pk})
+        )
+        task = project.tasks.get()
+        self.assertEqual(task.name, "Задача из строки")
+        self.assertEqual(task.description, "Описание задачи")
+
+    def test_edit_project_adds_task_via_button(self):
+        project = Project.objects.create(
+            owner=self.user,
+            name="Проект",
+            description="Описание",
+            deadline=timezone.localdate() + timezone.timedelta(days=30),
+        )
+        r = self.client.post(
+            reverse("tasks:project_edit", kwargs={"pk": project.pk}),
+            self.payload(
+                name="Проект",
+                **{
+                    "tasks-TOTAL_FORMS": "1",
+                    **self.task_row(),
+                },
+            ),
+        )
+        self.assertEqual(r.status_code, 302)
+        task = project.tasks.get()
+        self.assertEqual(task.name, "Задача из строки")
+
+    def test_add_task_takes_last_filled_row(self):
+        # Несколько строк: задача создаётся из последней заполненной.
+        r = self.client.post(
+            reverse("tasks:project_create"),
+            self.payload(**{
+                "tasks-TOTAL_FORMS": "2",
+                **self.task_row(0, name="Первая"),
+                **self.task_row(1, name="Последняя"),
+            }),
+        )
+        project = Project.objects.get(name="Новый проект")
+        self.assertRedirects(
+            r, reverse("tasks:project_edit", kwargs={"pk": project.pk})
+        )
+        self.assertEqual(project.tasks.count(), 1)
+        self.assertEqual(project.tasks.get().name, "Последняя")
+
+    def test_add_task_skips_existing_rows_in_edit(self):
+        # При редактировании уже сохранённые задачи не дублируются:
+        # создаётся только задача из новой строки.
+        project = Project.objects.create(
+            owner=self.user,
+            name="Проект",
+            description="Описание",
+            deadline=timezone.localdate() + timezone.timedelta(days=30),
+        )
+        old_task = Task.objects.create(owner=self.user, project=project, name="Старая")
+        r = self.client.post(
+            reverse("tasks:project_edit", kwargs={"pk": project.pk}),
+            self.payload(
+                name="Проект",
+                **{
+                    "tasks-TOTAL_FORMS": "2",
+                    "tasks-INITIAL_FORMS": "1",
+                    "tasks-0-id": str(old_task.pk),
+                    "tasks-0-name": "Старая",
+                    "tasks-0-deadline": "",
+                    "tasks-0-description": "",
+                    "tasks-0-priority": "0",
+                    "tasks-0-difficulty": "1",
+                    "tasks-0-estimated_duration": "1",
+                    **self.task_row(1),
+                },
+            ),
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(project.tasks.count(), 2)
+        self.assertIsNotNone(project.tasks.filter(name="Задача из строки").first())
+
+    def test_add_task_with_empty_last_row_just_saves_project(self):
+        r = self.client.post(
+            reverse("tasks:project_create"), self.payload()
+        )
+        project = Project.objects.get(name="Новый проект")
+        self.assertRedirects(
+            r, reverse("tasks:project_edit", kwargs={"pk": project.pk})
+        )
+        self.assertEqual(project.tasks.count(), 0)
+
+    def test_add_task_with_empty_name_shows_errors(self):
+        r = self.client.post(
+            reverse("tasks:project_create"), self.payload(name="")
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Укажите название")
+
+
 class TaskShareTest(TestCase):
     """Публичные ссылки на шаги: включение, выключение, выполнение."""
 
@@ -2327,18 +2914,6 @@ class TaskShareTest(TestCase):
         )
         self.assertNotContains(r, "Прикреплённые файлы")
         self.assertNotContains(r, self.user.username)
-
-    def test_task_detail_shows_share_panel(self):
-        r = self.client.get(
-            reverse("tasks:task_detail", kwargs={"pk": self.task.pk})
-        )
-        self.assertContains(r, "Создать ссылку")
-        self.enable()
-        r = self.client.get(
-            reverse("tasks:task_detail", kwargs={"pk": self.task.pk})
-        )
-        self.assertContains(r, self.task.share_code)
-        self.assertContains(r, "Отключить ссылку")
 
 
 class JournalTest(TestCase):

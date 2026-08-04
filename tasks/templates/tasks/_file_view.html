@@ -1,0 +1,96 @@
+{% load task_tags %}
+{% with file_slides=slides|get_item:task_file.pk %}
+    <div class="file-view__item">
+        <div class="file-view__head">
+            <span class="tag tag--labeled">{{ task_file.original_name }}</span>
+            <span class="tag">{{ task_file.size_display }}</span>
+            {% if is_project_file %}
+                <a href="{% url 'tasks:project_file_download' project.pk task_file.pk %}" class="btn btn--ghost btn--sm">Скачать</a>
+            {% else %}
+                <a href="{% url 'tasks:task_file_download' task.pk task_file.pk %}" class="btn btn--ghost btn--sm">Скачать</a>
+            {% endif %}
+        </div>
+
+        {% if file_slides and file_slides|length > 1 and not task_file.original_name|has_image_extension %}
+            <div class="file-view__nav">
+                <button type="button" class="btn btn--ghost btn--sm file-view__prev" aria-label="Предыдущий слайд">←</button>
+                <span class="file-view__counter"><span data-current>1</span> / {{ file_slides|length }}</span>
+                <button type="button" class="btn btn--ghost btn--sm file-view__next" aria-label="Следующий слайд">→</button>
+            </div>
+        {% endif %}
+
+        <div class="file-view__body">
+            {% if task_file.original_name|has_image_extension %}
+                {% if is_project_file %}
+                    <img class="file-view__image"
+                         src="{% url 'tasks:project_file_preview' project.pk task_file.pk %}"
+                         alt="{{ task_file.original_name }}">
+                {% else %}
+                    <img class="file-view__image"
+                         src="{% url 'tasks:task_file_preview' task.pk task_file.pk %}"
+                         alt="{{ task_file.original_name }}">
+                {% endif %}
+            {% else %}
+                {% for slide in file_slides %}
+                    <div class="file-view__slide{% if not forloop.first %} is-hidden{% endif %}"
+                         data-slide="{{ forloop.counter0 }}">
+                        <pre class="file-view__text">{{ slide }}</pre>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <div class="file-view__actions">
+            {% if is_project_file %}
+                {% if task_file.suggested_dates %}
+                    <form method="post" action="{% url 'tasks:project_file_apply_deadline' project.pk task_file.pk %}" class="inline">
+                        {% csrf_token %}
+                        <label class="help" for="deadline-{{ task_file.pk }}">Дата из файла:</label>
+                        <select name="date" id="deadline-{{ task_file.pk }}">
+                            {% for date in task_file.suggested_dates %}
+                                <option value="{{ date.isoformat }}">{{ date|date:"d.m.Y" }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn--ghost btn--sm">В дедлайн проекта</button>
+                    </form>
+                {% endif %}
+                {% if task_file.suggested_items %}
+                    <form method="post" action="{% url 'tasks:project_file_create_tasks' project.pk task_file.pk %}" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn--ghost btn--sm">Создать задачи проекта из пунктов</button>
+                    </form>
+                {% endif %}
+                <form method="post" action="{% url 'tasks:project_file_delete' project.pk task_file.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--ghost btn--sm">Удалить файл</button>
+                </form>
+            {% else %}
+                {% if task_file.suggested_dates %}
+                    <form method="post" action="{% url 'tasks:task_file_apply_deadline' task.pk task_file.pk %}" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ back_url }}">
+                        <label class="help" for="deadline-{{ task_file.pk }}">Дата из файла:</label>
+                        <select name="date" id="deadline-{{ task_file.pk }}">
+                            {% for date in task_file.suggested_dates %}
+                                <option value="{{ date.isoformat }}">{{ date|date:"d.m.Y" }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn--ghost btn--sm">В дедлайн задачи</button>
+                    </form>
+                {% endif %}
+                {% if task_file.suggested_items %}
+                    <form method="post" action="{% url 'tasks:task_file_create_tasks' task.pk task_file.pk %}" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ back_url }}">
+                        <button type="submit" class="btn btn--ghost btn--sm">Создать задачи из пунктов</button>
+                    </form>
+                {% endif %}
+                <form method="post" action="{% url 'tasks:task_file_delete' task.pk task_file.pk %}" class="inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ back_url }}">
+                    <button type="submit" class="btn btn--ghost btn--sm">Удалить файл</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+{% endwith %}

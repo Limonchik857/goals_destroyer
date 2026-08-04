@@ -7,6 +7,8 @@ import datetime
 
 from django import forms
 
+from tasks.forms import ISODateInput
+
 from .models import Poll
 
 MAX_DAYS = 14
@@ -31,10 +33,10 @@ class PollForm(forms.Form):
         }),
     )
     date_start = forms.DateField(
-        label="С какого дня", widget=forms.DateInput(attrs={"type": "date"})
+        label="С какого дня", widget=ISODateInput(attrs={"type": "date"})
     )
     date_end = forms.DateField(
-        label="По какой день", widget=forms.DateInput(attrs={"type": "date"})
+        label="По какой день", widget=ISODateInput(attrs={"type": "date"})
     )
     skip_weekends = forms.BooleanField(
         label="Без выходных", required=False, initial=True

@@ -55,6 +55,32 @@ urlpatterns = [
     path("projects/<int:pk>/complete/", views.ProjectCompleteView.as_view(), name="project_complete"),
     path("projects/<int:pk>/reopen/", views.ProjectReopenView.as_view(), name="project_reopen"),
     path("projects/<int:pk>/import/", views.import_tasks, name="import_tasks"),
+    # Файлы проекта
+    path(
+        "projects/<int:pk>/files/<int:file_pk>/",
+        views.ProjectFileDownloadView.as_view(),
+        name="project_file_download",
+    ),
+    path(
+        "projects/<int:pk>/files/<int:file_pk>/preview/",
+        views.ProjectFilePreviewView.as_view(),
+        name="project_file_preview",
+    ),
+    path(
+        "projects/<int:pk>/files/<int:file_pk>/delete/",
+        views.ProjectFileDeleteView.as_view(),
+        name="project_file_delete",
+    ),
+    path(
+        "projects/<int:pk>/files/<int:file_pk>/apply-deadline/",
+        views.ProjectFileApplyDeadlineView.as_view(),
+        name="project_file_apply_deadline",
+    ),
+    path(
+        "projects/<int:pk>/files/<int:file_pk>/create-tasks/",
+        views.ProjectFileCreateTasksView.as_view(),
+        name="project_file_create_tasks",
+    ),
     # Задачи
     path("tasks/new/", views.TaskCreateView.as_view(), name="task_create"),
     path("tasks/<int:pk>/", views.TaskDetailView.as_view(), name="task_detail"),
@@ -71,6 +97,11 @@ urlpatterns = [
         "tasks/<int:pk>/files/<int:file_pk>/",
         views.TaskFileDownloadView.as_view(),
         name="task_file_download",
+    ),
+    path(
+        "tasks/<int:pk>/files/<int:file_pk>/preview/",
+        views.TaskFilePreviewView.as_view(),
+        name="task_file_preview",
     ),
     path(
         "tasks/<int:pk>/files/<int:file_pk>/delete/",

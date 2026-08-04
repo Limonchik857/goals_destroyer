@@ -1,0 +1,40 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ heading }}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'agenda:admin' meeting.admin_code %}" class="back">← К обсуждению</a>
+    <h1>{{ heading }}</h1>
+
+    <form method="post" class="form">
+        {% csrf_token %}
+        <div class="field">
+            <label for="{{ form.title.id_for_label }}">Название</label>
+            {{ form.title }}
+            {{ form.title.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.description.id_for_label }}">Описание</label>
+            {{ form.description }}
+            {{ form.description.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.project.id_for_label }}">Проект</label>
+            {{ form.project }}
+            <div class="help">Проект, в котором появятся задачи итога. Он подставится в форму создания задачи.</div>
+            {{ form.project.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.responsible_user.id_for_label }}">Ответственный</label>
+            {{ form.responsible_user }}
+            <div class="help">Кто отвечает за выполнение итога (можно не выбирать).</div>
+            {{ form.responsible_user.errors }}
+        </div>
+        <div class="form__actions">
+            <button type="submit" class="btn btn--primary">{{ form.instance.pk|yesno:"Сохранить изменения,Зафиксировать итог" }}</button>
+            <a href="{% url 'agenda:admin' meeting.admin_code %}" class="btn btn--ghost">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

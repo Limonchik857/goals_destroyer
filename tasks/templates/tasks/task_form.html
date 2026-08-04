@@ -5,7 +5,8 @@
 
 {% block content %}
 <div class="page page--narrow">
-    <a href="{% url 'tasks:workspace' %}" class="back">← К задачам</a>
+    <a href="{% if form.instance.pk %}{% url 'tasks:task_detail' form.instance.pk %}{% else %}{% url 'tasks:workspace' %}{% endif %}"
+       class="back">← {% if form.instance.pk %}К задаче{% else %}К задачам{% endif %}</a>
     <h1>{{ form.instance.pk|yesno:"Редактировать задачу,Новая задача" }}</h1>
 
     <form method="post" class="form" enctype="multipart/form-data">
@@ -19,6 +20,12 @@
             <label for="{{ form.project.id_for_label }}">Проект</label>
             {{ form.project }}
             {{ form.project.errors }}
+        </div>
+        <div class="field">
+            <label for="{{ form.meeting_outcome.id_for_label }}">Итог встречи</label>
+            {{ form.meeting_outcome }}
+            <div class="help">Задача привяжется к итогу встречи, и его прогресс обновится автоматически.</div>
+            {{ form.meeting_outcome.errors }}
         </div>
         <div class="field">
             <label for="{{ form.priority.id_for_label }}">Приоритет</label>
@@ -61,24 +68,29 @@
         </div>
         <div class="field">
             <label for="{{ form.attachments.id_for_label }}">Прикрепить файлы</label>
-            {{ form.attachments }}
+            <div class="attach-picker">
+                {{ form.attachments }}
+                <button type="button" class="btn btn--ghost attach-picker__add">+ Добавить ещё файл</button>
+            </div>
+            <ul class="attach-list" data-attach-list>
+                {% if form.instance.pk %}
+                    {% for tf in form.instance.files.all %}
+                        <li class="attach-list__item attach-list__item--old" data-attach-old>
+                            <span class="attach-list__name">{{ tf.original_name }}</span>
+                            <span class="tag">{{ tf.size_display }}</span>
+                            <span class="attach-list__old">уже прикреплён</span>
+                        </li>
+                    {% endfor %}
+                {% endif %}
+            </ul>
             <div class="help">{{ form.attachments.help_text }}</div>
             {{ form.attachments.errors }}
-            {% if form.instance.pk %}
-                {% with attached=form.instance.files.count %}
-                    {% if attached %}
-                        <div class="help">
-                            Уже прикреплено: {{ attached }} {{ attached|pluralize_ru:"файл,файла,файлов" }}.
-                            Новые файлы добавятся к ним — открепить можно на
-                            <a href="{% url 'tasks:task_detail' form.instance.pk %}">странице задачи</a>.
-                        </div>
-                    {% endif %}
-                {% endwith %}
-            {% endif %}
+            <div class="help" data-attach-count hidden></div>
         </div>
         <div class="form__actions">
             <button type="submit" class="btn btn--primary">{{ form.instance.pk|yesno:"Сохранить изменения,Создать задачу" }}</button>
-            <a href="{% url 'tasks:workspace' %}" class="btn btn--ghost">Отмена</a>
+            <a href="{% if form.instance.pk %}{% url 'tasks:task_detail' form.instance.pk %}{% else %}{% url 'tasks:workspace' %}{% endif %}"
+               class="btn btn--ghost">Отмена</a>
         </div>
         {% if form.instance.pk %}
             <div class="form__delete">
@@ -87,4 +99,84 @@
         {% endif %}
     </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var input = document.getElementById("{{ form.attachments.id_for_label }}");
+        var addBtn = document.querySelector(".attach-picker__add");
+        var list = document.querySelector("[data-attach-list]");
+        var count = document.querySelector("[data-attach-count]");
+        if (!input || !addBtn || !list) return;
+
+        var chosen = [];
+        var dt = null;
+        if (window.DataTransfer) dt = new DataTransfer();
+
+        function humanSize(bytes) {
+            if (bytes < 1024) return bytes + " Б";
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " КБ";
+            return (bytes / 1024 / 1024).toFixed(1) + " МБ";
+        }
+
+        function render() {
+            list.querySelectorAll("[data-attach-new]").forEach(function (li) {
+                li.remove();
+            });
+            chosen.forEach(function (f) {
+                var li = document.createElement("li");
+                li.className = "attach-list__item";
+                li.dataset.attachNew = "";
+                var name = document.createElement("span");
+                name.className = "attach-list__name";
+                name.textContent = f.name;
+                name.title = f.name;
+                var size = document.createElement("span");
+                size.className = "tag";
+                size.textContent = humanSize(f.size);
+                var del = document.createElement("button");
+                del.type = "button";
+                del.className = "attach-list__remove";
+                del.setAttribute("aria-label", "Убрать файл " + f.name);
+                del.textContent = "×";
+                del.addEventListener("click", function () {
+                    chosen = chosen.filter(function (x) { return x !== f; });
+                    sync();
+                    render();
+                });
+                li.appendChild(name);
+                li.appendChild(size);
+                li.appendChild(del);
+                list.appendChild(li);
+            });
+            if (count) {
+                count.hidden = chosen.length === 0;
+                count.textContent = "Выбрано новых файлов: " + chosen.length + ". Файлы прикрепятся при сохранении.";
+            }
+        }
+
+        function sync() {
+            if (dt) {
+                dt.items.clear();
+                chosen.forEach(function (f) { dt.items.add(f); });
+                input.files = dt.files;
+            }
+            // НЕ очищаем input.value: в Chrome присваивание value=""
+            // сбрасывает input.files в пустой список, и форма уходит
+            // без файлов.
+        }
+
+        addBtn.addEventListener("click", function () { input.click(); });
+        input.addEventListener("change", function () {
+            Array.prototype.forEach.call(input.files, function (f) {
+                chosen.push(f);
+            });
+            sync();
+            render();
+        });
+
+        render();
+    })();
+</script>
 {% endblock %}

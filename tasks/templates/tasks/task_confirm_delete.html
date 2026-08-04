@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="page page--narrow">
-    <a href="{% url 'tasks:task_detail' task.pk %}" class="back">← Назад</a>
+    <a href="{% url 'tasks:task_detail' task.pk %}" class="back">← К задаче</a>
     <div class="confirm-card">
         <h1>Удалить задачу?</h1>
         <p>Задача «{{ task.name }}» будет удалена. Это действие нельзя отменить.</p>

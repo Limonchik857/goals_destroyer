@@ -994,6 +994,12 @@ a.gcard__title:hover {
     padding: 0 8px;
 }
 
+.ftasks__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .ftask {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -2479,6 +2485,66 @@ input[type="file"]::file-selector-button:hover {
 .phase-badge--collect { color: var(--accent); border-color: var(--accent); }
 .phase-badge--vote    { color: #d97706; border-color: #d97706; }
 .phase-badge--done    { color: var(--done); border-color: var(--done); }
+.phase-badge--in_progress { color: var(--accent); border-color: var(--accent); }
+.phase-badge--cancelled   { color: var(--danger); border-color: var(--danger); }
+
+/* --- Итоги встречи --- */
+
+.outcome-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    max-width: 220px;
+}
+
+.outcome-progress__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.outcome-tasks {
+    margin-top: 24px;
+}
+
+.outcome-tasks__list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+}
+
+.outcome-tasks__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.outcome-tasks__item:last-child {
+    border-bottom: none;
+}
+
+.outcome-tasks__item .check {
+    cursor: default;
+}
+
+.outcome-tasks__name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.outcome-tasks__item.is-done .outcome-tasks__name {
+    color: var(--text-muted);
+    text-decoration: line-through;
+}
 
 .board-timer {
     padding: 4px 10px;
@@ -2870,7 +2936,7 @@ input[type="file"]::file-selector-button:hover {
     min-width: 0;
     font-size: 14px;
     line-height: 1.45;
-    word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 .journal-list__actions {
@@ -3075,4 +3141,387 @@ input[type="file"]::file-selector-button:hover {
     padding: 32px 20px;
     text-align: center;
     color: var(--text-muted);
+}
+
+/* --- Формы рабочих пространств (раздел «Идеи») --- */
+.rs-form .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.rs-form .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+}
+
+.rs-form .field label {
+    margin: 0;
+}
+
+.rs-form .field input[type="text"],
+.rs-form .field textarea,
+.rs-form .field select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    color-scheme: light dark;
+}
+
+.rs-form .field textarea {
+    resize: vertical;
+    min-height: 90px;
+}
+
+.rs-form .field select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a9aa7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 32px;
+}
+
+.rs-form .form__actions {
+    margin-top: 4px;
+}
+
+/* --- Просмотр задачи: две колонки, слева данные, справа файлы --- */
+
+.task-split {
+    display: grid;
+    grid-template-columns: minmax(300px, 2fr) minmax(360px, 3fr);
+    gap: 20px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .task-split {
+        grid-template-columns: 1fr;
+    }
+}
+
+.task-info .panel__head {
+    align-items: flex-start;
+    padding: 22px 24px 18px;
+}
+
+.task-info .panel__head .panel__title {
+    line-height: 1.35;
+}
+
+.task-info .panel__subtitle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.task-info .panel__head-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    min-width: 140px;
+}
+
+.task-info .panel__head-actions .btn {
+    width: 100%;
+    text-align: center;
+}
+
+.task-info,
+.task-files {
+    padding: 0 24px 24px;
+}
+
+.task-files .file-tabs {
+    margin: 0 -24px 0;
+    padding: 12px 24px 0;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+}
+
+.file-view__item + .file-view__item {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px dashed var(--border);
+}
+
+.project-progress-label {
+    margin: 12px 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.props {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 24px;
+    margin: 18px 0 0;
+}
+
+.props__row {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.props dt {
+    color: var(--text-muted);
+    font-size: 13px;
+    flex: 0 0 auto;
+}
+
+.props dd {
+    margin: 0;
+    font-size: 14px;
+}
+
+.task-info__h {
+    margin: 26px 0 10px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.task-info__desc {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.task-info__footer {
+    margin-top: 20px;
+}
+
+.file-view.is-hidden,
+.file-view__slide.is-hidden {
+    display: none;
+}
+
+.file-view__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.file-view__nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.file-view__counter {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.file-view__body {
+    max-height: 62vh;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-2);
+}
+
+.file-view__text {
+    margin: 0;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: inherit;
+}
+
+.file-view__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.file-view__actions form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.file-view__actions select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+}
+
+/* --- Просмотр задачи: картинка --- */
+
+.file-view__image {
+    display: block;
+    max-width: 100%;
+    max-height: 62vh;
+    margin: 0 auto;
+    border-radius: 12px;
+    object-fit: contain;
+}
+
+/* --- Вкладки файлов в просмотре задачи --- */
+
+.file-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 14px 0;
+}
+
+.file-tabs__tab {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.file-tabs__tab:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+}
+
+.file-tabs__tab.is-active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+/* --- Выбор файлов в форме задачи --- */
+
+.attach-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.attach-picker input[type="file"] {
+    max-width: 100%;
+    padding: 8px;
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    font-size: 13px;
+}
+
+.attach-list {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.attach-list__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+}
+
+.attach-list__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.attach-list__old {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.attach-list__remove {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: var(--danger-soft);
+    color: var(--danger);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attach-list__remove:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+/* --- Строки файлов в форме проекта --- */
+
+.attach-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0 0;
+}
+
+.attach-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.attach-row input[type="file"] {
+    flex: 0 1 auto;
+    max-width: 260px;
+    font-size: 13px;
+}
+
+.attach-row .attach-row__target {
+    flex: 1 1 220px;
+    min-width: 160px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
 }

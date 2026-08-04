@@ -10,7 +10,6 @@
 <body>
 <header class="navbar">
     <div class="navbar__inner">
-        <a href="{% url 'tasks:home' %}" class="navbar__brand">goal_destroyer</a>
 
         {% if user.is_authenticated %}
             <nav class="navbar__nav">
@@ -103,21 +102,6 @@
 </main>
 
 <script>
-    document.addEventListener("submit", function (e) {
-        var form = e.target;
-        if (!form.classList.contains("gcard__toggle")) return;
-        if ((form.method || "").toLowerCase() === "get") return;
-        e.preventDefault();
-        var card = form.closest(".gcard");
-        if (card && card.classList.contains("is-leaving")) return;
-        if (card) {
-            card.classList.add("is-leaving");
-            setTimeout(function () { form.submit(); }, 420);
-        } else {
-            form.submit();
-        }
-    });
-
     document.querySelectorAll("[data-copy]").forEach(function (btn) {
         btn.addEventListener("click", function () {
             var input = document.getElementById(btn.dataset.copy);

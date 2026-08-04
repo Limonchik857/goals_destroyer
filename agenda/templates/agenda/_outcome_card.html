@@ -1,0 +1,35 @@
+{# Карточка итога встречи. Переменные: outcome, show_actions (организатор). #}
+<li class="gcard {% if outcome.is_completed %}is-done{% endif %}">
+    <div class="gcard__top">
+        <span class="gcard__title">
+            {% if show_actions %}
+                <a href="{% url 'agenda:outcome_detail' outcome.meeting.admin_code outcome.pk %}">{{ outcome.title }}</a>
+            {% else %}
+                {{ outcome.title }}
+            {% endif %}
+        </span>
+        <span class="phase-badge phase-badge--{{ outcome.status }}">{{ outcome.get_status_display }}</span>
+    </div>
+    {% if outcome.description %}
+        <p class="gcard__desc">{{ outcome.description|truncatechars:140 }}</p>
+    {% endif %}
+    <div class="gcard__footer">
+        <span class="tag">{{ outcome.project.name|default:"Без проекта" }}</span>
+        {% if outcome.responsible_user %}
+            <span class="tag">Отв.: {{ outcome.responsible_user.get_full_name|default:outcome.responsible_user.username }}</span>
+        {% endif %}
+        <span class="gcard__spacer"></span>
+        {% if outcome.is_in_progress %}
+            {% with p=outcome.progress %}
+            <span class="outcome-progress">
+                <span class="pbar {% if p.percent == 100 %}pbar--full{% endif %}">
+                    <span class="pbar__fill" style="width: {{ p.percent }}%"></span>
+                </span>
+                <span class="outcome-progress__label">{{ p.done }}/{{ p.total }}</span>
+            </span>
+            {% endwith %}
+        {% elif outcome.is_cancelled %}
+            <span class="is-muted">{{ outcome.cancellation_reason|truncatechars:40 }}</span>
+        {% endif %}
+    </div>
+</li>

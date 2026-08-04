@@ -28,7 +28,9 @@
                             <button type="submit" class="check" aria-label="Завершить проект"
                                     aria-pressed="false"></button>
                         </form>
-                        <span class="gcard__title">{{ project.name }}</span>
+                        <span class="gcard__title">
+                            <a href="{% url 'tasks:project_detail' project.pk %}">{{ project.name }}</a>
+                        </span>
                         <div class="gcard__meta">
                             {% if project.deadline %}
                                 <span class="deadline {% if project.is_overdue %}deadline--overdue{% endif %}">{{ project.deadline|smart_deadline }}</span>
@@ -53,6 +55,7 @@
                     <div class="gcard__footer">
                         <span class="tag">{{ project.progress.total }} {{ project.progress.total|pluralize_ru:"задача,задачи,задач" }}</span>
                         <span class="gcard__actions">
+                            <a href="{% url 'tasks:project_detail' project.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
                             <a href="{% url 'tasks:project_edit' project.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
                         </span>
                     </div>

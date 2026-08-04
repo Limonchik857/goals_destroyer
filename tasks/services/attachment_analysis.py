@@ -43,6 +43,24 @@ CHECKBOX_DONE_RE = re.compile(r"^\s*[-*]\s*\[[xXхХ]\]\s+(.+)$")
 # - пункт  /  * пункт  /  • пункт  /  1. пункт  /  1) пункт
 BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d{1,3}[.)])\s+(.+)$")
 
+# Строка из дефисов («---») — граница слайдов в текстовой презентации.
+SLIDE_SEPARATOR_RE = re.compile(r"^\s*-{3,}\s*$")
+
+# Изображения, которые безопасно показывать прямо на странице задачи.
+PREVIEW_IMAGE_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".avif", ".ico",
+}
+PREVIEW_IMAGE_MIME = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".avif": "image/avif",
+    ".ico": "image/x-icon",
+}
+
 
 def extract_text(task_file):
     """Достать текст из вложения. None — тип не поддерживается.
@@ -161,6 +179,54 @@ def find_items(text):
         if len(item) >= 3:
             cleaned.append(item)
     return cleaned[:MAX_ITEMS]
+
+
+def extract_slides(task_file):
+    """Разбить вложение на «слайды» для просмотра.
+
+    - PDF: каждый слайд — одна страница;
+    - текст (.txt/.md/.csv/.log), .docx: блоки, разделённые строкой «---»;
+      если разделителей нет — весь текст одним слайдом.
+
+    Возвращает список строк; None — тип не поддерживается или файл
+    не читается (как и в analyze_attachment, без исключений наружу).
+    """
+    try:
+        if Path(task_file.original_name).suffix.lower() == ".pdf":
+            from pypdf import PdfReader
+
+            with task_file.file.open("rb") as handle:
+                reader = PdfReader(io.BytesIO(handle.read()))
+            slides = []
+            total = 0
+            for page in reader.pages[:MAX_PDF_PAGES]:
+                text = (page.extract_text() or "").strip()
+                if text:
+                    slides.append(text)
+                total += len(text)
+                if total >= MAX_TEXT_LENGTH:
+                    break
+            return slides or [""]
+
+        text = extract_text(task_file)
+        if text is None:
+            return None
+        blocks = []
+        current = []
+        for line in text.splitlines():
+            if SLIDE_SEPARATOR_RE.match(line):
+                block = "\n".join(current).strip()
+                if block:
+                    blocks.append(block)
+                current = []
+            else:
+                current.append(line)
+        block = "\n".join(current).strip()
+        if block:
+            blocks.append(block)
+        return blocks or [""]
+    except Exception:
+        return None
 
 
 def analyze_attachment(task_file):

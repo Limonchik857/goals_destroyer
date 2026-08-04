@@ -69,6 +69,23 @@
         </section>
     {% endif %}
 
+    {# --- Итоги встречи (для участников — без управления) --- #}
+    <section class="panel">
+        <header class="panel__head panel__head--center">
+            <div class="panel__head-center">
+                <h2 class="panel__title topics-title">Итоги встречи</h2>
+                <p class="panel__subtitle">Что решили сделать — и как идёт выполнение</p>
+            </div>
+        </header>
+        <ul class="grid">
+            {% for outcome in outcomes %}
+                {% include "agenda/_outcome_card.html" %}
+            {% empty %}
+                <li class="empty">Итогов пока нет.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
     {# --- Ссылка для команды --- #}
     <div class="share-box">
         <h3>Ссылка для команды</h3>

@@ -27,11 +27,6 @@
             {{ f.deadline }}
             {{ f.deadline.errors }}
         </div>
-        {% if f.DELETE and f.instance.pk %}
-            <div class="field ftask__delete">
-                <label for="{{ f.DELETE.id_for_label }}">{{ f.DELETE }} Удалить</label>
-            </div>
-        {% endif %}
     </div>
     <div class="field">
         <label for="{{ f.description.id_for_label }}">Описание</label>

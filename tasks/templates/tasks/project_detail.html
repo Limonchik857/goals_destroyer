@@ -6,31 +6,145 @@
 {% block content %}
 <div class="page">
     <a href="{% url 'tasks:project_list' %}" class="back">← Все проекты</a>
+    {% url 'tasks:project_detail' project.pk as project_url %}
 
+    <div class="task-split">
+        <section class="panel task-info">
+            <header class="panel__head">
+                <div>
+                    <h1 class="panel__title">{{ project.name }}</h1>
+                    <p class="panel__subtitle">
+                        {% if project.is_completed %}
+                            <span class="badge badge--done">Завершён</span>
+                        {% else %}
+                            <span class="badge badge--todo">В работе</span>
+                        {% endif %}
+                        {% if project.deadline %}
+                            <span class="deadline {% if project.is_overdue %}deadline--overdue{% endif %}">
+                                Дедлайн: {{ project.deadline|smart_deadline }}{% if project.is_overdue %} · просрочено{% endif %}
+                            </span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="panel__head-actions">
+                    {% if project.is_completed %}
+                        <a href="{% url 'tasks:project_reopen' project.pk %}" class="btn btn--primary btn--sm">Вернуть в работу</a>
+                    {% else %}
+                        <a href="{% url 'tasks:project_complete' project.pk %}" class="btn btn--primary btn--sm">Завершить</a>
+                    {% endif %}
+                    <a href="{% url 'tasks:project_edit' project.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+                </div>
+            </header>
+
+            {% if project.progress.total %}
+                <div class="pbar pbar--wide {% if project.progress.percent == 100 %}pbar--full{% endif %}">
+                    <span class="pbar__fill" style="width: {{ project.progress.percent }}%"></span>
+                </div>
+                <p class="project-progress-label">
+                    Выполнено {{ project.progress.done }} из {{ project.progress.total }}
+                    {{ project.progress.total|pluralize_ru:"задачи,задач,задач" }}
+                </p>
+            {% endif %}
+
+            <dl class="props">
+                <div class="props__row">
+                    <dt>Создан</dt>
+                    <dd>{{ project.created_at|date:"d.m.Y" }}</dd>
+                </div>
+                {% if project.source_template %}
+                    <div class="props__row">
+                        <dt>По шаблону</dt>
+                        <dd><a href="{% url 'tasks:template_detail' project.source_template.pk %}">{{ project.source_template.name }}</a></dd>
+                    </div>
+                {% endif %}
+                <div class="props__row">
+                    <dt>Задач</dt>
+                    <dd>{{ project.progress.total }} {{ project.progress.total|pluralize_ru:"задача,задачи,задач" }}</dd>
+                </div>
+                {% if project.completed_at %}
+                    <div class="props__row">
+                        <dt>Завершён</dt>
+                        <dd>{{ project.completed_at|date:"d.m.Y" }}</dd>
+                    </div>
+                {% endif %}
+            </dl>
+
+            <h2 class="task-info__h">Описание</h2>
+            {% if project.description %}
+                <p class="task-info__desc">{{ project.description|linebreaksbr }}</p>
+            {% else %}
+                <p class="gcard__desc gcard__desc--empty">Описания нет</p>
+            {% endif %}
+
+            <div class="task-info__footer">
+                <a href="{% url 'tasks:project_delete' project.pk %}" class="btn btn--danger">Удалить проект</a>
+            </div>
+        </section>
+
+        <section class="panel task-files">
+            <header class="panel__head">
+                <div>
+                    <h2 class="panel__title">Вложения</h2>
+                    <p class="panel__subtitle">
+                        {{ project_files|length }}
+                        {% with n=project_files|length %}{{ n|pluralize_ru:"файл,файла,файлов" }}{% endwith %}
+                        проекта и задач
+                    </p>
+                </div>
+            </header>
+
+            {% if not project_files and not task_files_by_task %}
+                <p class="empty">Файлов нет. Прикрепите их при изменении проекта.</p>
+            {% else %}
+                <div class="file-tabs">
+                    {% if project_files %}
+                        <button type="button" class="file-tabs__tab is-active" data-file-tab="project">Файлы проекта</button>
+                    {% endif %}
+                    {% for task in tasks %}
+                        {% if task_files_by_task|get_item:task.pk %}
+                            <button type="button"
+                                    class="file-tabs__tab{% if not project_files and forloop.first %} is-active{% endif %}"
+                                    data-file-tab="task-{{ task.pk }}">{{ task.name }}</button>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if project_files %}
+                    <div class="file-view" data-file-pane="project">
+                        {% for task_file in project_files %}
+                            {% include "tasks/_file_view.html" with task_file=task_file project=project is_project_file=True back_url=project_url %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                {% for task in tasks %}
+                    {% with task_pane_files=task_files_by_task|get_item:task.pk %}
+                        {% if task_pane_files %}
+                            <div class="file-view{% if project_files %} is-hidden{% endif %}" data-file-pane="task-{{ task.pk }}">
+                                {% for task_file in task_pane_files %}
+                                    {% include "tasks/_file_view.html" with task_file=task_file task=task project=project is_project_file=False back_url=project_url %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                {% endfor %}
+            {% endif %}
+        </section>
+    </div>
+
+    {# --- Задачи проекта --- #}
     <section class="panel">
         <header class="panel__head">
             <div>
-                <h1 class="panel__title">Проект: {{ project.name }}</h1>
+                <h2 class="panel__title">Задачи проекта</h2>
                 <p class="panel__subtitle">
                     {{ tasks|length }} {{ tasks|length|pluralize_ru:"задача,задачи,задач" }}
-                    {% if project.progress.total %} · выполнено {{ project.progress.done }} из {{ project.progress.total }}{% endif %}
-                    {% if project.is_completed %} · проект завершён{% endif %}
-                    {% if project.source_template %} · по шаблону
-                        <a href="{% url 'tasks:template_detail' project.source_template.pk %}">«{{ project.source_template.name }}»</a>
-                    {% endif %}
                 </p>
-                {% if project.progress.total %}
-                    <span class="pbar pbar--wide {% if project.progress.percent == 100 %}pbar--full{% endif %}">
-                        <span class="pbar__fill" style="width: {{ project.progress.percent }}%"></span>
-                    </span>
-                {% endif %}
             </div>
             <div class="panel__head-actions">
                 <a href="{% url 'tasks:import_tasks' project.pk %}" class="btn btn--ghost btn--sm">Загрузить из файла</a>
                 <a href="{% url 'tasks:task_create' %}?project={{ project.id }}" class="btn btn--primary">+ Новая задача</a>
             </div>
         </header>
-
         <ul class="grid">
             {% for task in tasks %}
                 {% include "tasks/_task_card.html" with hide_project=True %}
@@ -39,5 +153,65 @@
             {% endfor %}
         </ul>
     </section>
+
+    {# --- Активные итоги встреч, связанные с проектом --- #}
+    {% if outcomes %}
+        <section class="panel">
+            <header class="panel__head">
+                <div>
+                    <h2 class="panel__title">Итоги встреч</h2>
+                    <p class="panel__subtitle">Активные решения, связанные с проектом</p>
+                </div>
+            </header>
+            <ul class="grid">
+                {% for outcome in outcomes %}
+                    {% include "agenda/_outcome_card.html" with show_actions=True %}
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var tabs = Array.prototype.slice.call(document.querySelectorAll("[data-file-tab]"));
+        var panes = Array.prototype.slice.call(document.querySelectorAll("[data-file-pane]"));
+        var byKey = {};
+        panes.forEach(function (pane) { byKey[pane.dataset.filePane] = pane; });
+        tabs.forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                tabs.forEach(function (t) { t.classList.toggle("is-active", t === tab); });
+                panes.forEach(function (pane) {
+                    pane.classList.toggle("is-hidden", pane !== byKey[tab.dataset.fileTab]);
+                });
+            });
+        });
+
+        // Слайды внутри каждого предпросмотра файла.
+        Array.prototype.forEach.call(
+            document.querySelectorAll("[data-file-pane] .file-view__slide"),
+            function (slide) {
+                var pane = slide.closest(".file-view");
+                var slides = Array.prototype.slice.call(pane.querySelectorAll("[data-slide]"));
+                if (slides.length < 2) return;
+                var counter = pane.querySelector("[data-current]");
+                var current = 0;
+                function show(index) {
+                    current = (index + slides.length) % slides.length;
+                    slides.forEach(function (s, i) {
+                        s.classList.toggle("is-hidden", i !== current);
+                    });
+                    if (counter) counter.textContent = current + 1;
+                }
+                var prev = pane.querySelector(".file-view__prev");
+                var next = pane.querySelector(".file-view__next");
+                if (prev) prev.addEventListener("click", function () { show(current - 1); });
+                if (next) next.addEventListener("click", function () { show(current + 1); });
+                show(0);
+            }
+        );
+    })();
+</script>
 {% endblock %}

@@ -1,0 +1,26 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}Возврат проекта{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'tasks:completed_projects' %}" class="back">← Завершённые</a>
+    <div class="confirm-card">
+        <h1>Вернуть проект в работу?</h1>
+        <p>
+            Проект «<strong>{{ project.name }}</strong>» снова станет активным:
+            он вернётся в список проектов, а отметка о завершении будет снята.
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <div class="form__actions">
+                <button type="submit" class="btn btn--primary">Вернуть в работу</button>
+                <a href="{% url 'tasks:completed_projects' %}" class="btn btn--ghost">Назад</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

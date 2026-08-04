@@ -4,11 +4,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .forms import MeetingForm, TopicForm
-from .models import Meeting, Topic
-from .services import active_topics, carry_to_next, discussed_topics
+from .forms import CancellationForm, MeetingForm, MeetingOutcomeForm, TopicForm
+from .models import Meeting, MeetingOutcome, Topic
+from .services import (
+    active_topics,
+    carry_to_next,
+    discussed_topics,
+    with_outcome_progress,
+)
 from tasks.services.throttle import check_rate_limit
 
 
@@ -63,6 +69,9 @@ def meeting_detail(request, share_code):
         "topics": topics,
         "discussed": discussed_topics(meeting),
         "topic_form": TopicForm(),
+        "outcomes": with_outcome_progress(
+            meeting.outcomes.select_related("meeting", "project", "responsible_user")
+        ),
         "share_url": _share_url(request, meeting),
     })
 
@@ -121,6 +130,9 @@ def meeting_admin(request, admin_code):
         "topics": topics,
         "discussed": discussed_topics(meeting),
         "topic_form": TopicForm(),
+        "outcomes": with_outcome_progress(
+            meeting.outcomes.select_related("meeting", "project", "responsible_user")
+        ),
         "share_url": _share_url(request, meeting),
         "admin_url": request.build_absolute_uri(request.path),
     })
@@ -204,3 +216,96 @@ def meeting_delete(request, admin_code):
     meeting.delete()
     messages.success(request, "Обсуждение удалено.")
     return redirect("tasks:team_home")
+
+
+def _get_outcome(meeting, pk):
+    """Итог встречи, проверенный на владение обсуждением."""
+    return get_object_or_404(MeetingOutcome, pk=pk, meeting=meeting)
+
+
+@login_required
+def outcome_create(request, admin_code):
+    meeting = get_object_or_404(Meeting, admin_code=admin_code, owner=request.user)
+    form = MeetingOutcomeForm(request.POST or None, user=request.user)
+    if request.method == "POST" and form.is_valid():
+        outcome = form.save(commit=False)
+        outcome.meeting = meeting
+        outcome.save()
+        messages.success(request, "Итог встречи зафиксирован.")
+        return redirect("agenda:outcome_detail", admin_code=admin_code, pk=outcome.pk)
+    return render(request, "agenda/outcome_form.html", {
+        "meeting": meeting,
+        "form": form,
+        "heading": "Зафиксировать итог встречи",
+    })
+
+
+@login_required
+def outcome_detail(request, admin_code, pk):
+    meeting = get_object_or_404(Meeting, admin_code=admin_code, owner=request.user)
+    outcome = _get_outcome(meeting, pk)
+    return render(request, "agenda/outcome_detail.html", {
+        "meeting": meeting,
+        "outcome": outcome,
+        "tasks": outcome.tasks.select_related("project").all(),
+        "cancel_form": CancellationForm(),
+    })
+
+
+@login_required
+def outcome_edit(request, admin_code, pk):
+    meeting = get_object_or_404(Meeting, admin_code=admin_code, owner=request.user)
+    outcome = _get_outcome(meeting, pk)
+    form = MeetingOutcomeForm(
+        request.POST or None, instance=outcome, user=request.user
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Итог обновлён.")
+        return redirect("agenda:outcome_detail", admin_code=admin_code, pk=outcome.pk)
+    return render(request, "agenda/outcome_form.html", {
+        "meeting": meeting,
+        "form": form,
+        "heading": "Редактировать итог встречи",
+    })
+
+
+@login_required
+@require_POST
+def outcome_complete(request, admin_code, pk):
+    meeting = get_object_or_404(Meeting, admin_code=admin_code, owner=request.user)
+    outcome = _get_outcome(meeting, pk)
+    if not outcome.is_in_progress:
+        messages.error(request, "Итог уже закрыт.")
+    elif not outcome.can_complete:
+        messages.error(
+            request,
+            "Нельзя зафиксировать выполнение: сначала выполните все "
+            "задачи итога.",
+        )
+    else:
+        outcome.status = MeetingOutcome.Status.COMPLETED
+        outcome.completed_at = timezone.now()
+        outcome.save(update_fields=["status", "completed_at"])
+        messages.success(request, "Итог выполнен. Поздравляю!")
+    return redirect("agenda:outcome_detail", admin_code=admin_code, pk=outcome.pk)
+
+
+@login_required
+@require_POST
+def outcome_cancel(request, admin_code, pk):
+    meeting = get_object_or_404(Meeting, admin_code=admin_code, owner=request.user)
+    outcome = _get_outcome(meeting, pk)
+    if not outcome.is_in_progress:
+        messages.error(request, "Итог уже закрыт.")
+        return redirect("agenda:outcome_detail", admin_code=admin_code, pk=outcome.pk)
+    form = CancellationForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Укажите причину отмены.")
+        return redirect("agenda:outcome_detail", admin_code=admin_code, pk=outcome.pk)
+    outcome.status = MeetingOutcome.Status.CANCELLED
+    outcome.cancelled_at = timezone.now()
+    outcome.cancellation_reason = form.cleaned_data["cancellation_reason"].strip()
+    outcome.save(update_fields=["status", "cancelled_at", "cancellation_reason"])
+    messages.success(request, "Итог отменён.")
+    return redirect("agenda:outcome_detail", admin_code=admin_code, pk=outcome.pk)

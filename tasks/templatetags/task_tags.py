@@ -43,3 +43,20 @@ def smart_deadline(value):
     if delta == 2:
         return "послезавтра"
     return value.strftime("%d.%m.%Y")
+
+
+@register.filter
+def get_item(mapping, key):
+    """Значение словаря по ключу: {{ dict|get_item:key }}."""
+    try:
+        return mapping[key]
+    except (KeyError, TypeError):
+        return None
+
+
+@register.filter
+def has_image_extension(filename):
+    """Картинка ли вложение по расширению (показываем через preview URL)."""
+    from tasks.services.attachment_analysis import PREVIEW_IMAGE_EXTENSIONS
+
+    return f".{filename.rsplit('.', 1)[-1].lower()}" in PREVIEW_IMAGE_EXTENSIONS

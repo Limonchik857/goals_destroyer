@@ -1,4 +1,6 @@
 """Логика собрания: темы, перенос между встречами, итог."""
+from django.db.models import Count, Q
+
 from .models import Meeting, Topic
 
 
@@ -19,6 +21,21 @@ def discussed_topics(meeting):
 def pending_for_carry(meeting):
     """Активные темы для переноса на следующую встречу."""
     return active_topics(meeting)
+
+
+def with_outcome_progress(queryset):
+    """Аннотировать итоги счётчиками задач — MeetingOutcome.progress
+    берёт их без дополнительных запросов на каждый итог."""
+    from tasks.models import Task
+
+    return queryset.annotate(
+        total_tasks=Count("tasks", distinct=True),
+        done_tasks=Count(
+            "tasks",
+            filter=Q(tasks__status=Task.Status.DONE),
+            distinct=True,
+        ),
+    )
 
 
 def carry_to_next(meeting):

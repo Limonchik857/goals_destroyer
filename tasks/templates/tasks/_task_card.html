@@ -2,8 +2,7 @@
 {% load task_tags %}
 <li class="gcard {% if task.is_done %}is-done{% endif %}">
     <div class="gcard__top">
-        <form method="post" action="{% url 'tasks:task_toggle' task.pk %}" class="gcard__toggle">
-            {% csrf_token %}
+        <form method="get" action="{% url 'tasks:task_toggle' task.pk %}" class="gcard__toggle">
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             <button type="submit" class="check" aria-label="Переключить статус"
                     aria-pressed="{{ task.is_done|yesno:'true,false' }}"></button>
@@ -27,14 +26,14 @@
         <div class="gcard__footer">
             <a href="{% url 'tasks:project_detail' task.project_id %}" class="tag tag--labeled">Проект: {{ task.project.name }}</a>
             <span class="gcard__actions">
-                <a href="{% url 'tasks:task_edit' task.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+                <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
             </span>
         </div>
     {% else %}
         <div class="gcard__footer">
             <span></span>
             <span class="gcard__actions">
-                <a href="{% url 'tasks:task_edit' task.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
+                <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
             </span>
         </div>
     {% endif %}

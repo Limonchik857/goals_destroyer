@@ -25,8 +25,7 @@
             {% for project in projects %}
                 <li class="gcard is-done">
                     <div class="gcard__top">
-                        <form method="post" action="{% url 'tasks:project_reopen' project.pk %}" class="gcard__toggle">
-                            {% csrf_token %}
+                        <form method="get" action="{% url 'tasks:project_reopen' project.pk %}" class="gcard__toggle">
                             <input type="hidden" name="next" value="{{ request.get_full_path }}">
                             <button type="submit" class="check" aria-label="Вернуть в активные"
                                     aria-pressed="true"></button>

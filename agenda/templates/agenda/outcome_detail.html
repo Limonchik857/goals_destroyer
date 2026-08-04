@@ -1,0 +1,135 @@
+{% extends "tasks/base.html" %}
+{% load task_tags %}
+
+{% block title %}{{ outcome.title }}{% endblock %}
+
+{% block content %}
+<div class="page page--narrow">
+    <a href="{% url 'agenda:admin' meeting.admin_code %}" class="back">← К обсуждению</a>
+
+    <article class="detail-card">
+        <header class="detail-card__head">
+            <h1>{{ outcome.title }}</h1>
+            <span class="phase-badge phase-badge--{{ outcome.status }}">{{ outcome.get_status_display }}</span>
+        </header>
+
+        <dl class="meta">
+            <div class="meta__row">
+                <dt>Обсуждение</dt>
+                <dd><a href="{% url 'agenda:admin' meeting.admin_code %}">{{ meeting.title }}</a></dd>
+            </div>
+            <div class="meta__row">
+                <dt>Проект</dt>
+                <dd>
+                    {% if outcome.project %}
+                        <a href="{% url 'tasks:project_detail' outcome.project_id %}">{{ outcome.project.name }}</a>
+                    {% else %}
+                        <span class="is-muted">Без проекта</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="meta__row">
+                <dt>Ответственный</dt>
+                <dd>
+                    {% if outcome.responsible_user %}
+                        {{ outcome.responsible_user.get_full_name|default:outcome.responsible_user.username }}
+                    {% else %}
+                        <span class="is-muted">Не назначен</span>
+                    {% endif %}
+                </dd>
+            </div>
+            {% if outcome.is_completed %}
+                <div class="meta__row">
+                    <dt>Выполнен</dt>
+                    <dd>{{ outcome.completed_at|date:"d.m.Y H:i" }}</dd>
+                </div>
+            {% endif %}
+            {% if outcome.is_cancelled %}
+                <div class="meta__row">
+                    <dt>Причина отмены</dt>
+                    <dd>{{ outcome.cancellation_reason|linebreaksbr }}</dd>
+                </div>
+            {% endif %}
+        </dl>
+
+        {% if outcome.description %}
+            <section class="detail-card__desc">
+                {{ outcome.description|linebreaksbr }}
+            </section>
+        {% endif %}
+
+        <section>
+            <h3>Прогресс</h3>
+            {% with p=outcome.progress %}
+            <span class="pbar pbar--wide {% if p.percent == 100 %}pbar--full{% endif %}">
+                <span class="pbar__fill" style="width: {{ p.percent }}%"></span>
+            </span>
+            <p class="pbar__label">{{ p.done }} из {{ p.total }} задач выполнено ({{ p.percent }}%)</p>
+            {% endwith %}
+        </section>
+
+        <section class="outcome-tasks">
+            <h3>
+                Задачи итога
+                {% if tasks %}<span class="is-muted">· {{ tasks|length }}</span>{% endif %}
+            </h3>
+            {% if tasks %}
+                <ul class="outcome-tasks__list">
+                    {% for t in tasks %}
+                        <li class="outcome-tasks__item {% if t.is_done %}is-done{% endif %}">
+                            <span class="check {% if t.is_done %}check--done{% endif %}">{% if t.is_done %}✓{% endif %}</span>
+                            <a href="{% url 'tasks:task_detail' t.pk %}" class="outcome-tasks__name">{{ t.name }}</a>
+                            {% if t.deadline %}
+                                <span class="deadline {% if t.is_overdue %}deadline--overdue{% endif %}">{{ t.deadline|smart_deadline }}</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="is-muted">Задач пока нет — создайте первую из итога.</p>
+            {% endif %}
+        </section>
+
+        {% if outcome.is_in_progress %}
+            <div class="form__actions">
+                <a href="{% url 'tasks:task_create' %}?meeting_outcome={{ outcome.pk }}" class="btn btn--primary">+ Создать задачу из итога</a>
+                <a href="{% url 'agenda:outcome_edit' meeting.admin_code outcome.pk %}" class="btn btn--ghost">Редактировать</a>
+            </div>
+
+            <div class="form__actions">
+                <form method="post" action="{% url 'agenda:outcome_complete' meeting.admin_code outcome.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--ghost"
+                            {% if not outcome.can_complete %}disabled title="Сначала выполните все задачи итога"{% endif %}>
+                        Зафиксировать выполнение
+                    </button>
+                </form>
+            </div>
+
+            <section class="panel panel--pad">
+                <h3 class="panel__title panel__title--block">Отменить итог</h3>
+                <form method="post" action="{% url 'agenda:outcome_cancel' meeting.admin_code outcome.pk %}" class="form">
+                    {% csrf_token %}
+                    <div class="field">
+                        <label for="{{ cancel_form.cancellation_reason.id_for_label }}">Причина отмены</label>
+                        {{ cancel_form.cancellation_reason }}
+                        <div class="help">Причина обязательна: отменённый итог останется в истории.</div>
+                        {{ cancel_form.cancellation_reason.errors }}
+                    </div>
+                    <button type="submit" class="btn btn--danger" data-confirm="cancel">Отменить итог</button>
+                </form>
+            </section>
+        {% endif %}
+    </article>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelectorAll("[data-confirm='cancel']").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            if (!confirm("Отменить итог? Задачи останутся, но прогресс итога больше не будет считаться.")) e.preventDefault();
+        });
+    });
+</script>
+{% endblock %}

@@ -50,7 +50,40 @@
                     {% include "tasks/_project_task_form.html" %}
                 {% endfor %}
             </div>
-            <button type="button" class="btn btn--ghost btn--sm" id="add-task-form">+ Ещё задача</button>
+            <div class="ftasks__actions">
+                <button type="button" class="btn btn--ghost btn--sm" id="add-task-form">+ Ещё задача</button>
+                {% if not selected_template %}
+                    <button type="submit" name="add_task" value="1" class="btn btn--ghost btn--sm"
+                            title="Сохраняет проект и создаёт задачу из последней заполненной строки задач ниже">
+                        Создать задачу
+                    </button>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <fieldset class="ftasks-block">
+            <legend>Файлы проекта</legend>
+            <div class="help">{{ form.attachments.help_text }}</div>
+            <div id="attach-rows" class="attach-rows"></div>
+            <div class="ftasks__actions">
+                <button type="button" class="btn btn--ghost btn--sm" id="add-attach-row">+ Добавить файл</button>
+            </div>
+            {{ form.attachments.errors }}
+            {% if project_files %}
+                <ul class="attach-list">
+                    {% for tf in project_files %}
+                        <li class="attach-list__item attach-list__item--old" data-attach-old>
+                            <span class="attach-list__name">{{ tf.original_name }}</span>
+                            <span class="tag">{{ tf.size_display }}</span>
+                            {% if tf.task %}
+                                <span class="tag tag--labeled">задача: {{ tf.task.name }}</span>
+                            {% else %}
+                                <span class="attach-list__old">привязан к проекту</span>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
         </fieldset>
 
         <div class="form__actions">
@@ -69,6 +102,19 @@
     {% include "tasks/_project_task_form.html" with f=task_formset.empty_form %}
 </template>
 
+<template id="empty-attach-row">
+    <div class="attach-row">
+        <input type="file" name="attachments">
+        <select name="attach_target" class="attach-row__target" aria-label="Привязать файл к задаче">
+            <option value="">К проекту</option>
+            {% for t in project_tasks %}
+                <option value="{{ t.pk }}">{{ t.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="button" class="attach-list__remove attach-row__remove" aria-label="Убрать файл">×</button>
+    </div>
+</template>
+
 <script>
     // Кнопка «+ Ещё задача»: клонирует пустую форму формсета.
     document.getElementById("add-task-form").addEventListener("click", function () {
@@ -81,5 +127,24 @@
         document.getElementById("task-forms").appendChild(wrapper.firstElementChild);
         total.value = index + 1;
     });
+
+    // Кнопка «+ Добавить файл»: строка «файл + задача/проект», файлы
+    // отправятся обычным полем name="attachments", выбор задачи —
+    // полем name="attach_target" в том же порядке.
+    var addAttachBtn = document.getElementById("add-attach-row");
+    var attachRows = document.getElementById("attach-rows");
+    if (addAttachBtn && attachRows) {
+        addAttachBtn.addEventListener("click", function () {
+            var wrapper = document.createElement("div");
+            wrapper.innerHTML = document.getElementById("empty-attach-row").innerHTML;
+            var row = wrapper.firstElementChild;
+            var input = row.querySelector("input[type=file]");
+            row.querySelector(".attach-row__remove").addEventListener("click", function () {
+                row.remove();
+            });
+            attachRows.appendChild(row);
+            input.click();
+        });
+    }
 </script>
 {% endblock %}

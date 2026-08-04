@@ -89,6 +89,26 @@
         </section>
     {% endif %}
 
+    {# --- Итоги встречи --- #}
+    <section class="panel">
+        <header class="panel__head">
+            <div>
+                <h2 class="panel__title">Итоги встречи</h2>
+                <p class="panel__subtitle">Зафиксированные решения — по каждому собираются задачи и прогресс</p>
+            </div>
+            <div class="panel__head-actions">
+                <a href="{% url 'agenda:outcome_create' meeting.admin_code %}" class="btn btn--primary btn--sm">+ Зафиксировать итог</a>
+            </div>
+        </header>
+        <ul class="grid">
+            {% for outcome in outcomes %}
+                {% include "agenda/_outcome_card.html" with show_actions=True %}
+            {% empty %}
+                <li class="empty">Итогов пока нет. Зафиксируйте, что решили сделать после обсуждения.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
     {# --- Перенести оставшиеся на следующую встречу --- #}
     {% if meeting.is_collect and topics %}
         <div class="form__actions">
