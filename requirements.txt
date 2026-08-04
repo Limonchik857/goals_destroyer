@@ -1,3 +1,4 @@
 Django>=6.0,<6.1
 pypdf>=6.0
 python-docx>=1.1.2
+whitenoise>=6.0

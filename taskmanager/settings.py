@@ -13,15 +13,16 @@ SECRET_KEY = os.environ.get(
 )
 
 # DEBUG — только через переменную окружения.
-# По умолчанию True для удобства локальной разработки.
-# В production установить DJANGO_DEBUG=False.
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
+# По умолчанию False для безопасности: при ошибке не показываются переменные.
+# Для локальной разработки установить DJANGO_DEBUG=True.
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() == "true"
 
 # ALLOWED_HOSTS — через переменную окружения (список через запятую).
+# По умолчанию "*" — работает на любом хосте (localhost, LAN, VPS).
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get(
-        "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1"
+        "DJANGO_ALLOWED_HOSTS", "*"
     ).split(",")
     if host.strip()
 ]
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -120,6 +122,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# WhiteNoise: раздача статики без collectstatic (из папок приложений).
+WHITENOISE_USE_FINDERS = True
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Медиафайлы (загруженные пользователями)
 MEDIA_URL = '/media/'

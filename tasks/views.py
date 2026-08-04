@@ -100,7 +100,12 @@ class RegisterView(CreateView):
 
     def form_valid(self, form):
         response = super().form_valid(form)
-        login(self.request, self.object)  # сразу авторизуем нового пользователя
+        # Бэкенд нужен явно: настроено несколько AUTHENTICATION_BACKENDS.
+        login(
+            self.request,
+            self.object,
+            backend="tasks.auth_backend.EmailAuthBackend",
+        )
         return response
 
 

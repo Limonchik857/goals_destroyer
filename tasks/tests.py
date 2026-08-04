@@ -13,6 +13,7 @@ from django.utils import timezone
 from tasks.models import (
     HistoryEntry,
     JournalEntry,
+    Note,
     Project,
     ProjectTemplate,
     Task,
@@ -1925,6 +1926,21 @@ class AuthSecurityTest(TestCase):
         self.assertContains(r, "уже зарегистрирован")
         self.assertEqual(User.objects.count(), 1)
 
+    def test_register_logs_in_new_user(self):
+        # Успешная регистрация не должна падать: с несколькими
+        # AUTHENTICATION_BACKENDS нужно указывать backend в login().
+        r = self.client.post(reverse("tasks:register"), {
+            "email": "fresh@example.com",
+            "password1": "Str0ng-pass-123",
+            "password2": "Str0ng-pass-123",
+        })
+        self.assertEqual(r.status_code, 302)
+        self.assertRedirects(r, reverse("tasks:home"))
+        self.assertEqual(User.objects.count(), 1)
+        user = User.objects.get(email="fresh@example.com")
+        self.assertIn("_auth_user_id", self.client.session)
+        self.assertEqual(str(self.client.session["_auth_user_id"]), str(user.pk))
+
     def test_register_duplicate_email_case_insensitive(self):
         User.objects.create_user("u", email="user@example.com", password="p")
         r = self.client.post(reverse("tasks:register"), {
@@ -3166,3 +3182,254 @@ class ThrottleTest(TestCase):
         allowed, retry_after = check_rate_limit(request, "test_action", max_actions=3, period_seconds=60)
         self.assertFalse(allowed)
         self.assertGreater(retry_after, 0)
+
+
+class FullAppSmokeTest(TestCase):
+    """Каждый GET-URL всех приложений должен рендериться без ошибок 500.
+
+    Создаёт минимальные объекты нужных моделей и обходит все страницы.
+    POST-эндпоинты (удаление, переключение статуса, голосование и т.д.)
+    не проверяются здесь — для них есть отдельные тесты.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user("full_smoke", password="pass1234")
+        self.client.force_login(self.user)
+
+        self.project = Project.objects.create(owner=self.user, name="Smoke")
+        self.task = Task.objects.create(
+            owner=self.user,
+            name="Active",
+            project=self.project,
+            deadline=timezone.localdate() + timezone.timedelta(days=7),
+            priority=Task.Priority.HIGH,
+        )
+        self.task_done = Task.objects.create(
+            owner=self.user,
+            name="Done",
+            project=self.project,
+            status=Task.Status.DONE,
+        )
+
+        # Файлы задач и проекта (создаём реальный файл на диске)
+        content = b"hello"
+        self.task_file = TaskFile.objects.create(
+            task=self.task,
+            file=SimpleUploadedFile("test.txt", content),
+            original_name="test.txt",
+        )
+        self.project_file = TaskFile.objects.create(
+            project=self.project,
+            file=SimpleUploadedFile("proj.txt", content),
+            original_name="proj.txt",
+        )
+
+        self.note = Note.objects.create(owner=self.user, title="N", text="body")
+        self.journal_entry = JournalEntry.objects.create(
+            owner=self.user, text="Work done",
+        )
+
+        self.template = ProjectTemplate.objects.create(owner=self.user, name="Tpl")
+        self.template_task = TemplateTask.objects.create(
+            template=self.template, name="Tpl Task",
+        )
+
+        self.completed_project = Project.objects.create(
+            owner=self.user, name="Closed",
+            status=Project.Status.COMPLETED, completed_at=timezone.now(),
+        )
+
+        self.public_task = Task.objects.create(
+            owner=self.user, name="Pub", share_code="pub123abc",
+        )
+
+        from meetings.models import Poll
+        self.poll = Poll.objects.create(
+            owner=self.user, title="Poll", organizer="Me",
+            dates=["2026-08-10"], time_from=9, time_to=17,
+        )
+
+        from votes.models import Board
+        self.board = Board.objects.create(
+            owner=self.user, title="Board", organizer="Me",
+        )
+
+        from agenda.models import Meeting, MeetingOutcome
+        self.agenda_meeting = Meeting.objects.create(
+            owner=self.user, title="Meeting", organizer="Me",
+        )
+        self.outcome = MeetingOutcome.objects.create(
+            meeting=self.agenda_meeting, title="Outcome",
+        )
+
+        from focus.models import WorkSession, TaskWorkRecord
+        self.ws = WorkSession.objects.create(
+            user=self.user, energy=2, focus=2, available_time=2,
+        )
+        self.work_record = TaskWorkRecord.objects.create(
+            user=self.user, task=self.task, work_session=self.ws,
+            started_at=timezone.now(),
+        )
+
+    def _get(self, url, **kwargs):
+        return self.client.get(url, **kwargs)
+
+    def _ok(self, url, **kwargs):
+        """GET-запрос должен вернуть 200 (допускается редирект на логин)."""
+        r = self._get(url, **kwargs)
+        self.assertNotEqual(r.status_code, 500, f"GET {url} — server error")
+        self.assertIn(r.status_code, (200, 302), f"GET {url} — {r.status_code}")
+
+    # ── tasks ────────────────────────────────────────────────────────────
+
+    def test_tasks_main_pages(self):
+        today = timezone.localdate()
+        urls = [
+            reverse("tasks:home"),
+            reverse("tasks:team_home"),
+            reverse("tasks:workspace"),
+            reverse("tasks:overdue_tasks"),
+            reverse("tasks:completed_tasks"),
+            reverse("tasks:completed_projects"),
+            reverse("tasks:history"),
+            reverse("tasks:stats"),
+            reverse("tasks:journal"),
+            reverse("tasks:journal_summary"),
+            reverse("tasks:journal_summary_md"),
+            reverse("tasks:calendar"),
+            reverse("tasks:calendar_day",
+                     kwargs={"year": today.year, "month": today.month, "day": today.day}),
+            reverse("tasks:template_list"),
+            reverse("tasks:template_create"),
+            reverse("tasks:template_detail", kwargs={"pk": self.template.pk}),
+            reverse("tasks:template_edit", kwargs={"pk": self.template.pk}),
+            reverse("tasks:template_delete", kwargs={"pk": self.template.pk}),
+            reverse("tasks:template_run", kwargs={"pk": self.template.pk}),
+            reverse("tasks:template_task_create", kwargs={"pk": self.template.pk}),
+            reverse("tasks:template_task_edit",
+                     kwargs={"pk": self.template.pk, "task_pk": self.template_task.pk}),
+            reverse("tasks:template_task_delete",
+                     kwargs={"pk": self.template.pk, "task_pk": self.template_task.pk}),
+            reverse("tasks:project_list"),
+            reverse("tasks:project_create"),
+            reverse("tasks:project_detail", kwargs={"pk": self.project.pk}),
+            reverse("tasks:project_edit", kwargs={"pk": self.project.pk}),
+            reverse("tasks:project_complete", kwargs={"pk": self.project.pk}),
+            reverse("tasks:project_reopen", kwargs={"pk": self.completed_project.pk}),
+            reverse("tasks:import_tasks", kwargs={"pk": self.project.pk}),
+            reverse("tasks:task_create"),
+            reverse("tasks:task_detail", kwargs={"pk": self.task.pk}),
+            reverse("tasks:task_edit", kwargs={"pk": self.task.pk}),
+            reverse("tasks:task_toggle", kwargs={"pk": self.task.pk}),
+            reverse("tasks:note_list"),
+            reverse("tasks:note_create"),
+            reverse("tasks:note_edit", kwargs={"pk": self.note.pk}),
+            reverse("tasks:journal_entry_edit", kwargs={"pk": self.journal_entry.pk}),
+        ]
+        for url in urls:
+            with self.subTest(url=url):
+                self._ok(url)
+
+    def test_tasks_delete_confirm_pages(self):
+        """DeleteView показывает страницу подтверждения (GET 200)."""
+        for url in [
+            reverse("tasks:task_delete", kwargs={"pk": self.task.pk}),
+            reverse("tasks:project_delete", kwargs={"pk": self.project.pk}),
+            reverse("tasks:template_delete", kwargs={"pk": self.template.pk}),
+            reverse("tasks:note_delete", kwargs={"pk": self.note.pk}),
+            reverse("tasks:journal_entry_delete", kwargs={"pk": self.journal_entry.pk}),
+        ]:
+            with self.subTest(url=url):
+                r = self._get(url)
+                self.assertEqual(r.status_code, 200, f"GET {url}")
+
+    def test_project_complete_done_redirects(self):
+        r = self._get(
+            reverse("tasks:project_complete", kwargs={"pk": self.completed_project.pk})
+        )
+        self.assertEqual(r.status_code, 302)
+
+    def test_project_reopen_active_redirects(self):
+        r = self._get(
+            reverse("tasks:project_reopen", kwargs={"pk": self.project.pk})
+        )
+        self.assertEqual(r.status_code, 302)
+
+    def test_task_file_download(self):
+        r = self._get(reverse("tasks:task_file_download",
+                              kwargs={"pk": self.task.pk, "file_pk": self.task_file.pk}))
+        self.assertIn(r.status_code, (200, 404))
+
+    def test_project_file_download(self):
+        r = self._get(reverse("tasks:project_file_download",
+                              kwargs={"pk": self.project.pk, "file_pk": self.project_file.pk}))
+        self.assertIn(r.status_code, (200, 404))
+
+    def test_public_task_page(self):
+        self.client.logout()
+        r = self._get(reverse("tasks:public_task", kwargs={"code": self.public_task.share_code}))
+        self.assertEqual(r.status_code, 200)
+
+    def test_register_and_login_pages(self):
+        self.client.logout()
+        for url in [reverse("tasks:register"), reverse("tasks:login")]:
+            with self.subTest(url=url):
+                r = self._get(url)
+                self.assertEqual(r.status_code, 200)
+
+    # ── meetings ─────────────────────────────────────────────────────────
+
+    def test_meetings_pages(self):
+        for url in [
+            reverse("meetings:home"),
+            reverse("meetings:poll", kwargs={"share_code": self.poll.share_code}),
+            reverse("meetings:admin", kwargs={"admin_code": self.poll.admin_code}),
+        ]:
+            with self.subTest(url=url):
+                self._ok(url)
+
+    # ── votes ────────────────────────────────────────────────────────────
+
+    def test_votes_pages(self):
+        for url in [
+            reverse("votes:home"),
+            reverse("votes:board", kwargs={"share_code": self.board.share_code}),
+            reverse("votes:admin", kwargs={"admin_code": self.board.admin_code}),
+            reverse("votes:protocol_md", kwargs={"admin_code": self.board.admin_code}),
+        ]:
+            with self.subTest(url=url):
+                self._ok(url)
+
+    # ── agenda ───────────────────────────────────────────────────────────
+
+    def test_agenda_pages(self):
+        for url in [
+            reverse("agenda:home"),
+            reverse("agenda:meeting", kwargs={"share_code": self.agenda_meeting.share_code}),
+            reverse("agenda:admin", kwargs={"admin_code": self.agenda_meeting.admin_code}),
+            reverse("agenda:outcome_detail",
+                     kwargs={"admin_code": self.agenda_meeting.admin_code, "pk": self.outcome.pk}),
+            reverse("agenda:outcome_edit",
+                     kwargs={"admin_code": self.agenda_meeting.admin_code, "pk": self.outcome.pk}),
+        ]:
+            with self.subTest(url=url):
+                self._ok(url)
+
+    # ── focus ────────────────────────────────────────────────────────────
+
+    def test_focus_pages(self):
+        for url in [
+            reverse("focus:dashboard"),
+            reverse("focus:assess"),
+            reverse("focus:history"),
+            reverse("focus:statistics"),
+            reverse("focus:in_progress", kwargs={"pk": self.work_record.pk}),
+            reverse("focus:finish", kwargs={"pk": self.work_record.pk}),
+        ]:
+            with self.subTest(url=url):
+                self._ok(url)
+
+    def test_focus_recommendation_redirects_without_session(self):
+        """recommendation редиректит на assess, если сессия не задана."""
+        r = self._get(reverse("focus:recommendation"))
+        self.assertEqual(r.status_code, 302)
