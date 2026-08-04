@@ -7,7 +7,7 @@
     <a href="{% url 'tasks:project_list' %}" class="back">← Проекты</a>
     <h1>{{ form.instance.pk|yesno:"Редактировать проект,Новый проект" }}</h1>
 
-    <form method="post" class="form">
+    <form method="post" class="form" enctype="multipart/form-data">
         {% csrf_token %}
         {% if selected_template %}
             {{ form.template.as_hidden }}

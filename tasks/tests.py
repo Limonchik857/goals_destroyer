@@ -2604,6 +2604,86 @@ class ProjectFileTest(TestCase):
         self.assertTrue(TaskFile.objects.filter(pk=task_file.pk).exists())
 
 
+class ImageUploadTest(TestCase):
+    """Прикрепление изображений (jpg/png/gif/webp) к задачам и проектам."""
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        self.user = User.objects.create_user("img", password="p")
+        self.client.force_login(self.user)
+        self.project = Project.objects.create(
+            owner=self.user, name="Proj",
+            description="d",
+            deadline=timezone.localdate() + timezone.timedelta(days=30),
+        )
+
+    def _img(self, name, ext, content=b"\x89PNG\r\n\x1a\n" + b"\x00" * 50):
+        return SimpleUploadedFile(
+            f"{name}.{ext}", content,
+            content_type=f"image/{ext.replace('jpg', 'jpeg')}",
+        )
+
+    def task_payload(self, **extra):
+        payload = {
+            "name": "Img task",
+            "description": "d",
+            "project": "",
+            "deadline": (timezone.localdate() + timezone.timedelta(days=7)).isoformat(),
+            "priority": Task.Priority.LOW,
+            "difficulty": Task.Difficulty.MEDIUM,
+            "estimated_duration": Task.EstimatedDuration.UP_TO_30,
+            "recurrence": Task.Recurrence.NONE,
+            "recurrence_interval_days": "",
+        }
+        payload.update(extra)
+        return payload
+
+    def test_upload_jpg_to_task(self):
+        r = self.client.post(
+            reverse("tasks:task_create"),
+            self.task_payload(attachments=[self._img("photo", "jpg")]),
+        )
+        self.assertEqual(r.status_code, 302)
+        t = Task.objects.get(name="Img task")
+        self.assertEqual(t.files.count(), 1)
+        self.assertEqual(t.files.first().original_name, "photo.jpg")
+
+    def test_upload_png_to_task(self):
+        r = self.client.post(
+            reverse("tasks:task_create"),
+            self.task_payload(attachments=[self._img("screenshot", "png")]),
+        )
+        self.assertEqual(r.status_code, 302)
+        t = Task.objects.get(name="Img task")
+        self.assertEqual(t.files.first().original_name, "screenshot.png")
+
+    def test_upload_png_to_project(self):
+        r = self.client.post(
+            reverse("tasks:project_create"),
+            {
+                "name": "Proj with img",
+                "description": "d",
+                "deadline": (
+                    timezone.localdate() + timezone.timedelta(days=30)
+                ).isoformat(),
+                "tasks-TOTAL_FORMS": "0",
+                "tasks-INITIAL_FORMS": "0",
+                "tasks-MIN_NUM_FORMS": "0",
+                "tasks-MAX_NUM_FORMS": "1000",
+                "attachments": [self._img("logo", "png")],
+                "attach_target": [""],
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        p = Project.objects.get(name="Proj with img")
+        self.assertEqual(p.files.count(), 1)
+        self.assertEqual(p.files.first().original_name, "logo.png")
+
+
 class TaskToggleConfirmTest(TestCase):
     """Страницы подтверждения завершения / возврата задачи."""
 
