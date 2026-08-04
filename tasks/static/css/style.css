@@ -3530,3 +3530,93 @@ input[type="file"]::file-selector-button:hover {
     font-family: inherit;
     font-size: 13px;
 }
+
+/* ─── Mobile improvements (≤480px) ────────────────────────── */
+
+@media (max-width: 480px) {
+    /* Tighter page padding on small screens */
+    .container {
+        padding: 20px 12px 56px;
+    }
+
+    /* Navbar: wrap nav items instead of overflowing */
+    .navbar__inner {
+        padding: 0 12px;
+        gap: 12px;
+        height: auto;
+        min-height: 58px;
+        flex-wrap: wrap;
+    }
+
+    .navbar__nav {
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .navbar__actions {
+        margin-left: auto;
+    }
+
+    /* Meta grid: collapse to 1 column */
+    .meta {
+        grid-template-columns: 1fr;
+        gap: 10px 16px;
+    }
+
+    /* Stats row: collapse to 1 column on small screens */
+    .stats--row {
+        grid-template-columns: 1fr;
+    }
+
+    /* Detail card actions: stack vertically */
+    .detail-card__actions {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* Buttons: full-width on mobile for primary actions */
+    .detail-card__actions .btn {
+        width: 100%;
+    }
+
+    /* Form fields: full-width */
+    .field label,
+    .form__actions {
+        font-size: 14px;
+    }
+
+    /* Panel: tighter padding */
+    .panel {
+        padding: 16px 16px 20px;
+    }
+
+    /* Page head: stack title and button */
+    .page-head {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Calendar: more compact on mobile */
+    .calendar-day {
+        min-height: 48px;
+        padding: 3px 4px;
+    }
+
+    .calendar-day__view {
+        font-size: 10px;
+    }
+
+    /* Task table: collapse columns */
+    .task-table th,
+    .task-table td {
+        padding: 8px 6px;
+        font-size: 13px;
+    }
+
+    /* Attachment inputs */
+    .attach-row input[type="file"] {
+        max-width: 100%;
+        font-size: 12px;
+    }
+}

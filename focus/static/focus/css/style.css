@@ -253,3 +253,23 @@
     flex-wrap: wrap;
   }
 }
+
+@media (max-width: 480px) {
+  .panel--hero,
+  .panel--hero-lg {
+    padding: 32px 16px;
+  }
+  .detail-card__title {
+    font-size: 20px;
+  }
+  .detail-card__subtitle {
+    font-size: 16px;
+  }
+  .detail-card__actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .detail-card__actions .btn {
+    width: 100%;
+  }
+}
