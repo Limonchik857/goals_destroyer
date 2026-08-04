@@ -3236,6 +3236,11 @@ input[type="file"]::file-selector-button:hover {
     text-align: center;
 }
 
+/* Панели под просмотром (разделённый экран): задачи проекта, итоги */
+.task-split ~ .panel {
+    margin-top: 24px;
+}
+
 .task-info,
 .task-files {
     padding: 0 24px 24px;

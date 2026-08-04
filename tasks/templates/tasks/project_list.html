@@ -56,7 +56,6 @@
                         <span class="tag">{{ project.progress.total }} {{ project.progress.total|pluralize_ru:"задача,задачи,задач" }}</span>
                         <span class="gcard__actions">
                             <a href="{% url 'tasks:project_detail' project.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
-                            <a href="{% url 'tasks:project_edit' project.pk %}" class="btn btn--ghost btn--sm">Изменить</a>
                         </span>
                     </div>
                 </li>
