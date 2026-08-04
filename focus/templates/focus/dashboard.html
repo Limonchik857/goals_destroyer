@@ -5,11 +5,11 @@
 {% block content %}
 <div class="page page--narrow">
   {% if active_record %}
-    <div class="detail-card" style="text-align:center;">
-      <h2 style="font-size:20px;margin-bottom:4px;">Идёт работа над задачей</h2>
-      <p style="font-size:18px;font-weight:600;margin-bottom:16px;">{{ active_record.task.name }}</p>
+    <div class="detail-card detail-card--centered">
+      <h2 class="detail-card__title--sm">Идёт работа над задачей</h2>
+      <p class="detail-card__subtitle">{{ active_record.task.name }}</p>
 
-      <div class="meta" style="text-align:left;margin-bottom:20px;">
+      <div class="meta meta--in-card">
         <div class="meta__row">
           <dt>Начато</dt>
           <dd>{{ active_record.started_at|date:"d.m.Y H:i" }}</dd>
@@ -20,15 +20,15 @@
         </div>
       </div>
 
-      <div class="detail-card__actions" style="justify-content:center;">
+      <div class="detail-card__actions actions--centered">
         <a href="{% url 'focus:in_progress' pk=active_record.pk %}" class="btn btn--primary">Продолжить работу</a>
         <a href="{% url 'focus:postpone' pk=active_record.pk %}" class="btn btn--ghost">Отложить</a>
       </div>
     </div>
   {% else %}
-    <div class="panel" style="text-align:center;padding:64px 32px;">
-      <h1 style="font-size:24px;margin-bottom:8px;">Фокус и энергия</h1>
-      <p class="is-muted" style="margin-bottom:24px;">Укажите текущие условия, и мы поможем выбрать следующую задачу.</p>
+    <div class="panel panel--hero-lg">
+      <h1 class="hero-title">Фокус и энергия</h1>
+      <p class="is-muted mb-xl">Укажите текущие условия, и мы поможем выбрать следующую задачу.</p>
       <a href="{% url 'focus:assess' %}" class="btn btn--primary">Подобрать задачу</a>
     </div>
   {% endif %}

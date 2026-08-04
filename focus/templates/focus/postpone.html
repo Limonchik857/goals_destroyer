@@ -5,8 +5,8 @@
 {% block content %}
 <div class="page page--narrow">
   <div class="form">
-    <h2 class="panel__title" style="margin-bottom:4px;">Что произошло?</h2>
-    <p class="is-muted" style="margin-bottom:20px;">Задача: {{ record.task.name }}</p>
+    <h2 class="panel__title mb-xs">Что произошло?</h2>
+    <p class="is-muted mb-lg">Задача: {{ record.task.name }}</p>
     <form method="post">
       {% csrf_token %}
       <div class="field">

@@ -4,11 +4,11 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">{% endblock %}
 {% block content %}
 <div class="page page--narrow">
-  <div class="detail-card" style="text-align:center;">
-    <h2 style="font-size:20px;margin-bottom:4px;">Текущая задача</h2>
-    <p style="font-size:18px;font-weight:600;margin-bottom:16px;">{{ record.task.name }}</p>
+    <div class="detail-card detail-card--centered">
+      <h2 class="detail-card__title--sm">Текущая задача</h2>
+      <p class="detail-card__subtitle">{{ record.task.name }}</p>
 
-    <div class="meta" style="text-align:left;margin-bottom:20px;">
+      <div class="meta meta--in-card">
       <div class="meta__row">
         <dt>Начато</dt>
         <dd>{{ record.started_at|date:"H:i" }}</dd>
@@ -19,7 +19,7 @@
       </div>
     </div>
 
-    <div class="detail-card__actions" style="justify-content:center;">
+      <div class="detail-card__actions actions--centered">
       <form method="post" action="{% url 'focus:finish_task' pk=record.pk %}" class="inline">
         {% csrf_token %}
         <button type="submit" class="btn btn--primary">Завершить задачу</button>

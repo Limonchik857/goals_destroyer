@@ -4,9 +4,9 @@
 {% block extra_css %}<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">{% endblock %}
 {% block content %}
 <div class="page page--narrow">
-  <div class="panel" style="text-align:center;padding:64px 32px;margin-top:20px;">
-    <h2 style="font-size:22px;margin-bottom:8px;">Нет активных задач</h2>
-    <p class="is-muted" style="margin-bottom:20px;">На сегодня нет незавершённых задач. Можно создать новую или использовать время для отдыха.</p>
+  <div class="panel panel--hero-lg">
+    <h2 class="detail-card__title">Нет активных задач</h2>
+    <p class="is-muted mb-lg">На сегодня нет незавершённых задач. Можно создать новую или использовать время для отдыха.</p>
     <a href="{% url 'tasks:task_create' %}" class="btn btn--primary">Создать задачу</a>
   </div>
 </div>

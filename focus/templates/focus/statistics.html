@@ -29,7 +29,7 @@
 
   {% if has_insights %}
     {% for insight in insights %}
-    <div class="panel" style="margin-top:16px;">
+    <div class="panel mt-md">
       <div class="panel__head">
         <h3 class="panel__title">
           {% if insight.type == 'postpone' %}Переносы
@@ -38,16 +38,16 @@
           {% endif %}
         </h3>
       </div>
-      <div style="padding:16px 20px;">
+      <div class="insight-body">
         <p>{{ insight.text }}</p>
       </div>
     </div>
     {% endfor %}
   {% else %}
-  <div class="page page--narrow" style="margin-top:16px;">
-    <div class="panel" style="text-align:center;padding:48px 32px;">
+  <div class="page page--narrow mt-md">
+    <div class="panel panel--hero">
       <p class="is-muted">Пока недостаточно данных для выводов. Нужно минимум 5 завершённых задач.</p>
-      <a href="{% url 'focus:assess' %}" class="btn btn--primary" style="margin-top:16px;">Продолжить работу</a>
+      <a href="{% url 'focus:assess' %}" class="btn btn--primary mt-md">Продолжить работу</a>
     </div>
   </div>
   {% endif %}

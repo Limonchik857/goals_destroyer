@@ -14,7 +14,7 @@
     <div class="panel__head">
       <h3 class="panel__title">Записи работы</h3>
     </div>
-    <div style="padding:12px 20px 20px;">
+    <div class="panel__body--padded">
       <div class="history-list">
         {% for r in records %}
         <div class="history-item">
@@ -44,9 +44,9 @@
   </div>
   {% else %}
   <div class="page page--narrow">
-    <div class="panel" style="text-align:center;padding:48px 32px;">
+    <div class="panel panel--hero">
       <p class="is-muted">Пока нет записей о работе.</p>
-      <a href="{% url 'focus:assess' %}" class="btn btn--primary" style="margin-top:16px;">Начать работу</a>
+      <a href="{% url 'focus:assess' %}" class="btn btn--primary mt-md">Начать работу</a>
     </div>
   </div>
   {% endif %}

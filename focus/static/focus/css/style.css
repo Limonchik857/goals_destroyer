@@ -1,4 +1,132 @@
-/* Фокус и энергия — дополнения к основному стилю */
+/* ── Утилитарные классы (вместо inline-стилей) ── */
+
+/* Панели */
+.panel--hero {
+  text-align: center;
+  padding: 48px 32px;
+}
+.panel--hero-lg {
+  text-align: center;
+  padding: 64px 32px;
+  margin-top: 20px;
+}
+.panel__body--padded {
+  padding: 12px 20px 20px;
+}
+
+/* Заголовки карточек */
+.detail-card__title {
+  font-size: 22px;
+  margin-bottom: 16px;
+}
+.detail-card__title--sm {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+.detail-card__subtitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+.detail-card__subtitle--sm {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+/* Мета в карточке */
+.meta--in-card {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+/* Кнопки — центрирование */
+.actions--centered {
+  justify-content: center;
+}
+
+/* Карточка задачи — центрирование */
+.detail-card--centered {
+  text-align: center;
+}
+
+/* Отступы */
+.mb-xs { margin-bottom: 4px; }
+.mb-sm { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-md { margin-bottom: 16px; }
+.mb-lg { margin-bottom: 20px; }
+.mb-xl { margin-bottom: 24px; }
+.mt-md { margin-top: 16px; }
+.mt-lg { margin-top: 20px; }
+.ml-auto { margin-left: auto; }
+
+/* Бейджи */
+.badge--sm {
+  font-size: 13px;
+}
+
+/* Предупреждение — подсказка */
+.warning__hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Секция (Почему выбрана и т.д.) */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* Текст-заголовок на главной */
+.hero-title {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+/* Тело инсайта */
+.insight-body {
+  padding: 16px 20px;
+}
+
+/* Сворачиваемые секции */
+.meta-details {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.meta-details summary {
+  list-style: none;
+  cursor: pointer;
+  position: relative;
+}
+.meta-details summary::-webkit-details-marker {
+  display: none;
+}
+.meta-details summary::after {
+  content: '▸';
+  position: absolute;
+  right: 0;
+  transition: transform 0.2s;
+}
+.meta-details[open] summary::after {
+  transform: rotate(90deg);
+}
+.meta__row--clickable dt::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+/* ── Фокус и энергия — добавления к основному стилю ── */
 
 /* Radio-группа как список карточек */
 .radio-group {
