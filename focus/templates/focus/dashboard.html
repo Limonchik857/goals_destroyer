@@ -1,8 +1,8 @@
 {% extends 'tasks/base.html' %}
 {% load static %}
 {% block title %}Фокус и энергия — goal_destroyer{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
 <div class="page page--narrow">
   {% if active_record %}
     <div class="detail-card" style="text-align:center;">
@@ -28,7 +28,7 @@
   {% else %}
     <div class="panel" style="text-align:center;padding:64px 32px;">
       <h1 style="font-size:24px;margin-bottom:8px;">Фокус и энергия</h1>
-      <p class="is-muted" style="margin-bottom:24px;">Укажи текущие условия, и мы поможем выбрать следующую задачу.</p>
+      <p class="is-muted" style="margin-bottom:24px;">Укажите текущие условия, и мы поможем выбрать следующую задачу.</p>
       <a href="{% url 'focus:assess' %}" class="btn btn--primary">Подобрать задачу</a>
     </div>
   {% endif %}

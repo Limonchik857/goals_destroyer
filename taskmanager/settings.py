@@ -1,16 +1,25 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
+# Загрузка .env файла (для локальной разработки).
+# В production переменные задаются через окружение контейнера/сервера.
+from dotenv import load_dotenv
+load_dotenv()
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# SECRET_KEY — через переменную окружения.
-# Если ключ не задан (локальная разработка), используется fallback.
-# В production всегда устанавливать DJANGO_SECRET_KEY.
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-=gtsg(i$%l0h%h+ud$ppor70ot+@k38i@gcn(xla-ku-2z1(f$",
-)
+# SECRET_KEY — ОБЯЗАТЕЛЕН через переменную окружения DJANGO_SECRET_KEY.
+# Без него приложение не запустится — это защищает от работы с хардкодом.
+import os
+if "DJANGO_SECRET_KEY" not in os.environ:
+    raise ImproperlyConfigured(
+        "Переменная окружения DJANGO_SECRET_KEY не задана. "
+        "Создайте .env или задайте переменную окружения перед запуском."
+    )
+SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 # DEBUG — только через переменную окружения.
 # По умолчанию False для безопасности: при ошибке не показываются переменные.

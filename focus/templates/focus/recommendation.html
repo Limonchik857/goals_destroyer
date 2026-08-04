@@ -1,8 +1,8 @@
 {% extends 'tasks/base.html' %}
 {% load static %}
 {% block title %}Рекомендация — Фокус и энергия{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
 <div class="page page--medium">
   <a href="{% url 'focus:assess' %}" class="back">← Назад к оценке</a>
 
@@ -48,8 +48,8 @@
 
     {% if is_urgent %}
     <div class="warning" style="margin-bottom:20px;">
-      <p>Эта задача срочная, но требует больше ресурсов, чем у тебя сейчас.</p>
-      <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">Не нужно выполнять её целиком. Начни с небольшого первого шага.</p>
+      <p>Эта задача срочная, но требует больше ресурсов, чем у вас сейчас.</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-top:4px;">Не нужно выполнять её целиком. Начните с небольшого первого шага.</p>
     </div>
     {% endif %}
 

@@ -1,8 +1,8 @@
 {% extends 'tasks/base.html' %}
 {% load static %}
 {% block title %}Задача завершена — Фокус и энергия{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
 <div class="page page--narrow">
   <div class="panel" style="text-align:center;padding:48px 32px;">
     <h2 style="font-size:22px;margin-bottom:8px;">Задача завершена</h2>

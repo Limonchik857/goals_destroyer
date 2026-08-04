@@ -96,6 +96,17 @@ class RegisterView(CreateView):
         # Авторизованного пользователя регистрировать не нужно.
         if request.user.is_authenticated:
             return redirect("tasks:home")
+        # Защита от брутфорса: 5 регистраций за 5 минут с одного IP.
+        from tasks.services.throttle import check_ip_rate_limit
+        allowed, retry_after = check_ip_rate_limit(
+            request, "register", max_actions=5, period_seconds=300
+        )
+        if not allowed:
+            messages.error(
+                request,
+                f"Слишком много попыток. Попробуйте через {retry_after} сек.",
+            )
+            return redirect("tasks:register")
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -112,6 +123,20 @@ class RegisterView(CreateView):
 class AppLoginView(LoginView):
     template_name = "tasks/login.html"
     redirect_authenticated_user = True
+
+    def dispatch(self, request, *args, **kwargs):
+        # Защита от брутфорса: 5 попыток за 5 минут с одного IP.
+        from tasks.services.throttle import check_ip_rate_limit
+        allowed, retry_after = check_ip_rate_limit(
+            request, "login", max_actions=5, period_seconds=300
+        )
+        if not allowed:
+            messages.error(
+                request,
+                f"Слишком много попыток входа. Попробуйте через {retry_after} сек.",
+            )
+            return redirect("tasks:login")
+        return super().dispatch(request, *args, **kwargs)
 
 
 class AppLogoutView(LoginRequiredMixin, View):

@@ -1,12 +1,12 @@
 {% extends 'tasks/base.html' %}
 {% load static %}
 {% block title %}Оценить состояние — Фокус и энергия{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{% static 'focus/css/style.css' %}">
 <div class="page page--narrow">
   <div class="form">
     <h2 class="panel__title" style="margin-bottom:4px;">Оценить состояние</h2>
-    <p class="is-muted" style="margin-bottom:20px;">Укажи текущие условия, и мы поможем выбрать следующую задачу.</p>
+    <p class="is-muted" style="margin-bottom:20px;">Укажите текущие условия, и мы поможем выбрать следующую задачу.</p>
     <form method="post">
       {% csrf_token %}
       <div class="field">
