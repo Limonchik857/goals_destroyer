@@ -5,8 +5,10 @@ from django.core.exceptions import ImproperlyConfigured
 
 # Загрузка .env файла (для локальной разработки).
 # В production переменные задаются через окружение контейнера/сервера.
+# Ищем .env в корне проекта по абсолютному пути, чтобы не зависеть
+# от рабочей директории, из которой запущен процесс.
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
