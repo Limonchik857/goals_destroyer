@@ -205,6 +205,17 @@ class Task(models.Model):
         blank=True,
         editable=False,
     )
+    # Письмо Gmail, из которого создана задача. SET_NULL: отключение
+    # интеграции или удаление письма не удаляет задачу. Письмо, с которым
+    # задача просто связана (без создания из него), лежит в M2M `emails`.
+    source_email = models.ForeignKey(
+        "integrations.EmailMessage",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+        verbose_name="Исходное письмо",
+    )
     created_at = models.DateTimeField("Дата создания", auto_now_add=True)
 
     class Meta:

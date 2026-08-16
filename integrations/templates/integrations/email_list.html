@@ -1,0 +1,53 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Рабочие письма{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-head">
+        <h1>Рабочие письма</h1>
+        {% if project %}
+            <p class="is-muted">Проект: {{ project.name }} — <a href="{% url 'integrations:email_list' %}">все письма</a></p>
+        {% endif %}
+    </div>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Письма</h2>
+            <a href="{% url 'integrations:gmail_detail' %}" class="btn btn--ghost btn--sm">К интеграции</a>
+        </div>
+        <div class="panel__body">
+            {% if emails %}
+                <ul class="today-events__list">
+                    {% for email in emails %}
+                        <li class="today-events__item">
+                            <div>
+                                <strong>{{ email.sender_name|default:email.sender_email }}</strong>
+                                <span class="is-muted">{{ email.subject|default:"(без темы)" }}</span>
+                                <span class="is-muted">{{ email.received_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                            <a href="{% url 'integrations:email_detail' email.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="is-muted">Писем нет.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    {% if page.paginator.num_pages > 1 %}
+    <div class="pagination">
+        <span class="is-muted">Страница {{ page.number }} из {{ page.paginator.num_pages }}</span>
+        <div class="today-actions__list">
+            {% if page.has_previous %}
+                <a href="?page={{ page.previous_page_number }}{% if project %}&project={{ project.pk }}{% endif %}" class="btn btn--ghost btn--sm">← Назад</a>
+            {% endif %}
+            {% if page.has_next %}
+                <a href="?page={{ page.next_page_number }}{% if project %}&project={{ project.pk }}{% endif %}" class="btn btn--ghost btn--sm">Вперёд →</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

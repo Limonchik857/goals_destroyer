@@ -54,6 +54,7 @@ from .models import (
     TemplateTask,
     log_action,
 )
+from integrations.models import EmailMessage
 from .services import gamification, journal_service, statistics
 from .services.attachment_analysis import (
     PREVIEW_IMAGE_EXTENSIONS,
@@ -518,6 +519,10 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
                 "meeting", "project", "responsible_user"
             ).filter(status=MeetingOutcome.Status.IN_PROGRESS)[:5]
         )
+        # Письма, связанные с проектом (читаются локально, без Gmail API).
+        emails = self.object.emails.select_related("integration")
+        ctx["project_emails"] = list(emails[:5])
+        ctx["project_emails_count"] = emails.count()
         # Файлы проекта + файлы каждой задачи (для вкладок в просмотре).
         project_files = list(self.object.files.select_related("task"))
         task_files = list(
@@ -1073,6 +1078,21 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
                 initial["meeting_outcome"] = outcome_id
                 if outcome.project_id:
                     initial["project"] = outcome.project_id
+        # «Создать задачу из письма Gmail»: предзаполняем название и
+        # описание метаданными письма (проверка владельца в form_valid).
+        email_id = self.request.GET.get("email")
+        if email_id:
+            message = EmailMessage.objects.filter(
+                pk=email_id, integration__user=self.request.user
+            ).first()
+            if message:
+                if message.subject:
+                    initial["name"] = message.subject[:200]
+                if message.snippet:
+                    initial["description"] = (
+                        f"Контекст письма ({message.sender_email}):\n"
+                        f"{message.snippet}"
+                    )
         # Кнопка «+ Повторяющаяся задача»: сразу выбираем «Каждые N дней»
         # с числом дней, чтобы поле интервала было видно.
         if self.request.GET.get("recurring"):
@@ -1081,6 +1101,15 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
         return initial
 
     def form_valid(self, form):
+        # «Создать задачу из письма»: проставляем источник (владелец
+        # письма уже проверен здесь, на сервере).
+        email_id = self.request.GET.get("email")
+        if email_id:
+            message = EmailMessage.objects.filter(
+                pk=email_id, integration__user=self.request.user
+            ).first()
+            if message is not None:
+                form.instance.source_email = message
         outcome = form.cleaned_data.get("meeting_outcome")
         if outcome is not None:
             # Серверные проверки: итог должен быть незакрытым, своим
@@ -1126,7 +1155,7 @@ class TaskDetailView(LoginRequiredMixin, DetailView):
     def get_queryset(self):
         return (
             Task.objects.filter(owner=self.request.user)
-            .select_related("project", "meeting_outcome")
+            .select_related("project", "meeting_outcome", "source_email")
             .prefetch_related("files")
         )
 

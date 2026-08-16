@@ -1,0 +1,64 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Gmail — Интеграции{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-head">
+        <h1>Gmail</h1>
+        <p class="is-muted">Интеграции</p>
+    </div>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Gmail подключён</h2>
+        </div>
+        <div class="panel__body">
+            <p class="is-muted">{{ integration.email }}</p>
+            <p>Синхронизация: {% if integration.is_active %}Подключено{% else %}Отключено{% endif %}</p>
+            {% if integration.last_sync_at %}
+                <p class="is-muted">Последнее обновление: {{ integration.last_sync_at|date:"d.m.Y H:i" }}</p>
+            {% else %}
+                <p class="is-muted">Синхронизация ещё не выполнялась.</p>
+            {% endif %}
+
+            <div class="today-actions__list">
+                <form method="post" action="{% url 'integrations:gmail_sync' %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--primary btn--sm">Синхронизировать</button>
+                </form>
+                <form method="post" action="{% url 'integrations:gmail_disconnect' %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--sm"
+                            onclick="return confirm('Отключить Gmail? Задачи и проекты сохранятся.');">Отключить Gmail</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Рабочие письма</h2>
+            <a href="{% url 'integrations:email_list' %}" class="btn btn--ghost btn--sm">Все письма</a>
+        </div>
+        <div class="panel__body">
+            {% if emails %}
+                <ul class="today-events__list">
+                    {% for email in emails %}
+                        <li class="today-events__item">
+                            <div>
+                                <strong>{{ email.sender_name|default:email.sender_email }}</strong>
+                                <span class="is-muted">{{ email.subject|default:"(без темы)" }}</span>
+                                <span class="is-muted">{{ email.received_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                            <a href="{% url 'integrations:email_detail' email.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="is-muted">Писем ещё нет. Нажмите «Синхронизировать», чтобы загрузить рабочие письма.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

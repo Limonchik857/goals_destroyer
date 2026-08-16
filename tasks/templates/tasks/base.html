@@ -85,6 +85,8 @@
                class="{% if request.resolver_match.url_name == 'stats' %}is-active{% endif %}">Статистика</a>
             <a href="{% url 'tasks:completed_tasks' %}"
                class="{% if request.resolver_match.url_name == 'completed_tasks' or request.resolver_match.url_name == 'completed_projects' %}is-active{% endif %}">Завершённые</a>
+            <a href="{% url 'integrations:settings' %}"
+               class="{% if request.resolver_match.app_name == 'integrations' %}is-active{% endif %}">Настройки</a>
         {% endif %}
     </div>
 </nav>

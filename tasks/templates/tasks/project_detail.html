@@ -76,6 +76,25 @@
                 <p class="gcard__desc gcard__desc--empty">Описания нет</p>
             {% endif %}
 
+            {% if project_emails %}
+                <h2 class="task-info__h">Связанные письма</h2>
+                <ul class="today-events__list">
+                    {% for email in project_emails %}
+                        <li class="today-events__item">
+                            <div>
+                                <strong>{{ email.sender_name|default:email.sender_email }}</strong>
+                                <span class="is-muted">{{ email.subject|default:"(без темы)" }}</span>
+                                <span class="is-muted">{{ email.received_at|date:"d.m.Y" }}</span>
+                            </div>
+                            <a href="{% url 'integrations:email_detail' email.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+                <p class="is-muted">Всего писем: {{ project_emails_count }}.
+                    <a href="{% url 'integrations:email_list' %}?project={{ project.pk %}">Все письма</a>
+                </p>
+            {% endif %}
+
             <div class="task-info__footer">
                 <a href="{% url 'tasks:project_delete' project.pk %}" class="btn btn--danger">Удалить проект</a>
             </div>

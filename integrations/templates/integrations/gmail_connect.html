@@ -1,0 +1,23 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}Gmail — Интеграции{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-head">
+        <h1>Gmail</h1>
+        <p class="is-muted">Интеграции</p>
+    </div>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Gmail</h2>
+        </div>
+        <div class="panel__body">
+            <p>Подключите рабочую почту, чтобы превращать письма в задачи и связывать их с проектами.</p>
+            <p class="is-muted">Goals Destroyer получит доступ только к чтению писем. Отправка и изменение почты не используются.</p>
+            <p><a href="{% url 'integrations:gmail_connect' %}" class="btn btn--primary">Подключить Gmail</a></p>
+        </div>
+    </section>
+</div>
+{% endblock %}

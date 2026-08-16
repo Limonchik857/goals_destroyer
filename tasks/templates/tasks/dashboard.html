@@ -101,6 +101,27 @@
                 {% endif %}
             </section>
 
+            {% if attention_emails %}
+            <section class="today-emails panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">📨 Письма, требующие внимания · {{ attention_emails_count }}</h2>
+                </div>
+                <ul class="today-alerts__list">
+                    {% for email in attention_emails %}
+                    <li class="today-alerts__item">
+                        <a href="{% url 'integrations:email_detail' email.pk %}">
+                            <strong>{{ email.sender_name|default:email.sender_email }}:</strong>
+                            {{ email.snippet|truncatechars:80 }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="today-empty">
+                    <a href="{% url 'integrations:email_list' %}" class="btn btn--ghost btn--sm">Все рабочие письма</a>
+                </div>
+            </section>
+            {% endif %}
+
             <section class="today-events panel">
                 <div class="panel__head">
                     <h2 class="panel__title">Ближайшее</h2>

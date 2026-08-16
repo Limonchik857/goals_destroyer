@@ -534,6 +534,10 @@ textarea {
     flex-wrap: wrap;
 }
 
+.panel__body {
+    padding: 16px 20px 20px;
+}
+
 /* --- Статистика (дашборд) --- */
 
 .stats {
@@ -3872,6 +3876,30 @@ input[type="file"]::file-selector-button:hover {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+/* Письма Gmail */
+.email-body {
+    margin-top: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-2);
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 480px;
+    overflow: auto;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 16px;
+    flex-wrap: wrap;
 }
 
 @media (max-width: 900px) {

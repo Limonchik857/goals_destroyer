@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'votes',
     'agenda',
     'focus',
+    'integrations',
 ]
 
 MIDDLEWARE = [
@@ -178,3 +179,19 @@ X_FRAME_OPTIONS = "DENY"
 MAX_TASK_FILE_SIZE = 10 * 1024 * 1024  # 10 МБ
 MAX_TASK_FILES_PER_TASK = 10
 MAX_PROJECT_FILES_PER_PROJECT = 20
+
+# -- Интеграции (Gmail) --
+# Google OAuth 2.0: https://console.cloud.google.com/apis/credentials
+GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "")
+GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "")
+GMAIL_REDIRECT_URI = os.environ.get(
+    "GMAIL_REDIRECT_URI",
+    "http://127.0.0.1:8000/integrations/gmail/callback/",
+)
+
+# Ключ шифрования OAuth-токенов (Fernet). Генерация:
+# python -c "import secrets; print(secrets.token_urlsafe(48))"
+TOKEN_ENCRYPTION_KEY = os.environ.get("TOKEN_ENCRYPTION_KEY", "")
+
+# Первая синхронизация: письма не старше этого периода (дней).
+GMAIL_INITIAL_SYNC_DAYS = 30

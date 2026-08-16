@@ -23,6 +23,7 @@ urlpatterns = [
     path('team/vote/', include('votes.urls')),
     path('team/agenda/', include('agenda.urls')),
     path('focus/', include('focus.urls')),
+    path('integrations/', include('integrations.urls')),
     path('', include('tasks.urls')),
 ]
 

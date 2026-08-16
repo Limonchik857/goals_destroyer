@@ -1,0 +1,127 @@
+{% extends "tasks/base.html" %}
+
+{% block title %}{{ message.subject|default:"Письмо" }}{% endblock %}
+
+{% block content %}
+<div class="page">
+    <div class="page-head">
+        <h1>{{ message.subject|default:"(без темы)" }}</h1>
+        <p class="is-muted">От: {{ message.sender_name|default:message.sender_email }} ({{ message.sender_email }}) · {{ message.received_at|date:"d.m.Y H:i" }}</p>
+    </div>
+
+    {% if message.gmail_url %}
+    <p>
+        <a href="{{ message.gmail_url }}" target="_blank" rel="noopener" class="btn btn--ghost btn--sm">Открыть в Gmail</a>
+        <a href="{% url 'tasks:task_create' %}?email={{ message.pk }}" class="btn btn--primary btn--sm">Создать задачу</a>
+    </p>
+    {% endif %}
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Содержимое</h2>
+        </div>
+        <div class="panel__body">
+            <p class="is-muted">{{ full.snippet }}</p>
+            {% if full.body_text %}
+                <div class="email-body">{{ full.body_text|linebreaksbr }}</div>
+            {% elif full.html_text %}
+                <div class="email-body">{{ full.html_text|linebreaksbr }}</div>
+            {% else %}
+                <p class="is-muted">Полное содержимое недоступно.</p>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Связанные задачи</h2>
+        </div>
+        <div class="panel__body">
+            {% if message.tasks.all %}
+                <h3 class="task-info__h">Созданные из этого письма</h3>
+                <ul class="today-events__list">
+                    {% for task in message.tasks.all %}
+                        <li class="today-events__item">
+                            <div>
+                                <strong>{{ task.name }}</strong>
+                                {% if task.project %}
+                                    <span class="is-muted">{{ task.project.name }}</span>
+                                {% endif %}
+                            </div>
+                            <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if tasks %}
+                <h3 class="task-info__h">Связанные с существующими задачами</h3>
+                <ul class="today-events__list">
+                    {% for task in tasks %}
+                        <li class="today-events__item">
+                            <div>
+                                <strong>{{ task.name }}</strong>
+                                {% if task.project %}
+                                    <span class="is-muted">{{ task.project.name }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="today-actions__list">
+                                <a href="{% url 'tasks:task_detail' task.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
+                                <form method="post" action="{% url 'integrations:email_unlink_task' message.pk task.pk %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn--ghost btn--sm">Убрать</button>
+                                </form>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% elif not message.tasks.all %}
+                <p class="is-muted">Задач, связанных с этим письмом, нет.</p>
+            {% endif %}
+
+            <form method="post" action="{% url 'integrations:email_link_task' message.pk %}" class="today-actions__list">
+                {% csrf_token %}
+                {{ link_task_form.task }}
+                <button type="submit" class="btn btn--primary btn--sm">+ Связать с задачей</button>
+            </form>
+        </div>
+    </section>
+
+    <section class="panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Проекты</h2>
+        </div>
+        <div class="panel__body">
+            {% if message.projects.all %}
+                <ul class="today-events__list">
+                    {% for project in message.projects.all %}
+                        <li class="today-events__item">
+                            <div>
+                                <strong>{{ project.name }}</strong>
+                                {% if project.deadline %}
+                                    <span class="is-muted">Дедлайн {{ project.deadline|date:"d.m.Y" }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="today-actions__list">
+                                <a href="{% url 'tasks:project_detail' project.pk %}" class="btn btn--ghost btn--sm">Открыть</a>
+                                <form method="post" action="{% url 'integrations:email_unlink_project' message.pk project.pk %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn--ghost btn--sm">Убрать</button>
+                                </form>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="is-muted">Проектов нет.</p>
+            {% endif %}
+
+            <form method="post" action="{% url 'integrations:email_link_project' message.pk %}" class="today-actions__list">
+                {% csrf_token %}
+                {{ link_project_form.project }}
+                <button type="submit" class="btn btn--primary btn--sm">Связать с проектом</button>
+            </form>
+        </div>
+    </section>
+</div>
+{% endblock %}

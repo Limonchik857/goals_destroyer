@@ -50,6 +50,16 @@
                         <dd>{{ task.meeting_outcome.name }}</dd>
                     </div>
                 {% endif %}
+                {% if task.source_email_id %}
+                    <div class="props__row">
+                        <dt>Источник задачи</dt>
+                        <dd>
+                            Gmail — от {{ task.source_email.sender_email }}:
+                            «{{ task.source_email.subject|default:"(без темы)" }}»
+                            <a href="{% url 'integrations:email_detail' task.source_email_id %}" class="btn btn--ghost btn--sm">Открыть письмо</a>
+                        </dd>
+                    </div>
+                {% endif %}
                 <div class="props__row">
                     <dt>Приоритет</dt>
                     <dd><span class="priority priority--{{ task.priority }}">{{ task.get_priority_display }}</span></dd>

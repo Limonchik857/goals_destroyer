@@ -40,6 +40,7 @@ class TodayDashboardService:
         progress = cls.get_today_progress(today_tasks, completed_today)
         journal_entry = cls.get_journal_entry(user, today)
         session = cls.get_session_today(user, today)
+        attention_emails = cls.get_attention_emails(user)
 
         return {
             "today": today,
@@ -60,6 +61,9 @@ class TodayDashboardService:
             # Ближайшее и внимание
             "events": events,
             "attention": attention,
+            # Письма, требующие внимания
+            "attention_emails": attention_emails,
+            "attention_emails_count": len(attention_emails),
             # Прогресс дня
             "progress": progress,
             # Журнал
@@ -281,6 +285,17 @@ class TodayDashboardService:
             })
 
         return items[:4]
+
+    # --- Письма, требующие внимания ---
+
+    @classmethod
+    def get_attention_emails(cls, user, limit=3):
+        """Письма Gmail, требующие внимания (эвристики, не AI)."""
+        try:
+            from integrations.services.attention import attention_messages
+        except ImportError:
+            return []
+        return attention_messages(user, limit=limit)
 
     # --- Прогресс дня ---
 
