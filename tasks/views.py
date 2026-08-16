@@ -66,6 +66,7 @@ from .services.project_service import (
     save_template_task_formset,
 )
 from .services.template_service import create_project_from_template
+from .services.today import TodayDashboardService
 
 
 def safe_next(request, fallback):
@@ -164,54 +165,8 @@ class ThemeToggleView(View):
 
 @login_required
 def home(request):
-    """Сводка: следующая задача, фокус-рекомендация, проекты, заметки."""
-    today = timezone.localdate()
-    user_tasks = Task.objects.filter(owner=request.user)
-
-    # «Следующая задача»: сначала дедлайны (ближайший), без дедлайна — в конец.
-    # Дальше по убыванию приоритета, при равенстве — раньше созданная.
-    next_task = (
-        user_tasks.filter(status=Task.Status.NOT_DONE)
-        .order_by(F("deadline").asc(nulls_last=True), "-priority", "created_at")
-        .first()
-    )
-
-    # «По фокусу и энергии»: рекомендация на основе последней оценки
-    # за последние 24 часа.
-    from focus.models import WorkSession
-    from focus.services.recommendation_service import TaskRecommendationService
-
-    focus_task = None
-    focus_recent = False
-    recent_session = WorkSession.objects.filter(
-        user=request.user,
-        created_at__gte=timezone.now() - datetime.timedelta(hours=24),
-    ).first()
-    if recent_session:
-        focus_recent = True
-        rec = TaskRecommendationService.get_recommendation(
-            request.user, recent_session
-        )
-        if rec:
-            focus_task = rec["task"]
-
-    context = {
-        "next_task": next_task,
-        "focus_task": focus_task,
-        "focus_recent": focus_recent,
-        "active_tasks": user_tasks.filter(status=Task.Status.NOT_DONE).count(),
-        "overdue_tasks": user_tasks.filter(
-            status=Task.Status.NOT_DONE, deadline__lt=today
-        ).count(),
-        "active_projects": Project.objects.filter(
-            owner=request.user, status=Project.Status.ACTIVE
-        ).count(),
-        "recent_notes": Note.objects.filter(owner=request.user)[:3],
-        # Напоминание журнала: сегодня ещё нет записи → показать баннер.
-        "journal_reminder": not JournalEntry.objects.filter(
-            owner=request.user, date=today
-        ).exists(),
-    }
+    """«Сегодня» — персональный рабочий центр текущего дня."""
+    context = TodayDashboardService.build(request.user)
     return render(request, "tasks/dashboard.html", context)
 
 

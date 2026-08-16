@@ -21,6 +21,7 @@ from tasks.models import (
     TemplateTask,
     add_months,
 )
+from meetings.models import Poll
 from tasks.services.attachment_analysis import MONTHS_RU, find_dates, find_items
 from tasks.services.gamification import (
     achievements,
@@ -101,15 +102,15 @@ class SmokeTest(TestCase):
 
     def test_dashboard_shows_next_task(self):
         r = self.client.get(reverse("tasks:home"))
-        self.assertContains(r, "Следующая задача")
-        # У просроченной задачи самый близкий дедлайн — она и есть следующая.
-        self.assertEqual(r.context["next_task"], self.task_overdue)
+        self.assertContains(r, "Главный фокус")
+        # У просроченной задачи самый близкий дедлайн — она и есть фокус дня.
+        self.assertEqual(r.context["focus_task"], self.task_overdue)
 
     def test_next_task_prefers_deadline_over_priority(self):
         # Задача без дедлайна с высоким приоритетом не обгоняет задачу
         # с ближайшим дедлайном.
         r = self.client.get(reverse("tasks:home"))
-        self.assertEqual(r.context["next_task"], self.task_overdue)
+        self.assertEqual(r.context["focus_task"], self.task_overdue)
 
     def test_next_task_fallback_to_priority_without_deadlines(self):
         Task.objects.filter(owner=self.user, deadline__isnull=False).delete()
@@ -118,7 +119,7 @@ class SmokeTest(TestCase):
         high = Task.objects.create(owner=self.user, name="HighPrio",
                                    priority=Task.Priority.HIGH)
         r = self.client.get(reverse("tasks:home"))
-        self.assertEqual(r.context["next_task"], high)
+        self.assertEqual(r.context["focus_task"], high)
 
     def test_next_task_fallback_to_earliest_when_all_equal(self):
         # Нет ни дедлайнов, ни различий в приоритетах → раньше добавленная.
@@ -126,15 +127,14 @@ class SmokeTest(TestCase):
         first = Task.objects.create(owner=self.user, name="First")
         Task.objects.create(owner=self.user, name="Second")
         r = self.client.get(reverse("tasks:home"))
-        self.assertEqual(r.context["next_task"], first)
+        self.assertEqual(r.context["focus_task"], first)
 
     def test_next_task_empty_state_when_no_active_tasks(self):
         Task.objects.filter(owner=self.user).delete()
         r = self.client.get(reverse("tasks:home"))
-        self.assertIsNone(r.context["next_task"])
-        # Раздел не пропадает: заголовок на месте, вместо карточки заглушка.
-        self.assertContains(r, "Следующая задача")
-        self.assertContains(r, "Задач нет")
+        self.assertIsNone(r.context["focus_task"])
+        # Блок «Главный фокус» без задачи не показывается.
+        self.assertNotContains(r, "Главный фокус")
 
     def test_workspace_shows_priority_and_deadline_label(self):
         r = self.client.get(reverse("tasks:workspace"))
@@ -305,27 +305,27 @@ class DashboardButtonTest(TestCase):
     def test_dashboard_shows_notes_and_stats(self):
         r = self.client.get(reverse("tasks:home"))
         self.assertEqual(r.status_code, 200)
-        self.assertContains(r, "Активные задачи")
-        self.assertContains(r, "Последние заметки")
+        self.assertContains(r, "Сегодня")
+        self.assertContains(r, "Быстро")
+        self.assertContains(r, "+ Задача")
 
 
 class DashboardFocusSectionTest(TestCase):
-    """Секция «По фокусу и энергии» на главной."""
+    """Focus-блок «Сегодня»: подбор задачи и учёт оценки дня."""
 
     def setUp(self):
         self.user = User.objects.create_user("u", password="p")
         self.client.force_login(self.user)
 
     def test_offers_focus_when_no_recent_session(self):
-        # Оценки ещё не было → предложение перейти в «Фокус и энергию».
+        # Оценки ещё не было → предложение пройти быструю оценку.
         r = self.client.get(reverse("tasks:home"))
-        self.assertContains(r, "По фокусу и энергии")
-        self.assertContains(r, "Оцените свою энергию и концентрацию")
-        self.assertIsNone(r.context["focus_task"])
+        self.assertContains(r, "Подобрать задачу")
+        self.assertContains(r, "Расскажите, сколько у вас энергии")
         self.assertFalse(r.context["focus_recent"])
 
     def test_old_session_ignored(self):
-        # Оценка старше 24 часов не учитывается.
+        # Оценка не сегодняшняя не учитывается.
         from focus.models import WorkSession
 
         WorkSession.objects.create(user=self.user, energy=2, focus=2, available_time=2)
@@ -334,8 +334,7 @@ class DashboardFocusSectionTest(TestCase):
         )
         r = self.client.get(reverse("tasks:home"))
         self.assertFalse(r.context["focus_recent"])
-        self.assertIsNone(r.context["focus_task"])
-        self.assertContains(r, "Оцените свою энергию и концентрацию")
+        self.assertContains(r, "Расскажите, сколько у вас энергии")
 
     def test_recent_session_shows_recommended_task(self):
         from focus.models import WorkSession
@@ -350,6 +349,7 @@ class DashboardFocusSectionTest(TestCase):
         r = self.client.get(reverse("tasks:home"))
         self.assertTrue(r.context["focus_recent"])
         self.assertEqual(r.context["focus_task"], high)
+        self.assertEqual(r.context["focus_session_task"], high)
 
     def test_new_task_appears_after_next_closed(self):
         from focus.models import WorkSession
@@ -379,7 +379,8 @@ class DashboardFocusSectionTest(TestCase):
         r = self.client.get(reverse("tasks:home"))
         self.assertTrue(r.context["focus_recent"])
         self.assertIsNone(r.context["focus_task"])
-        self.assertContains(r, "Задач нет")
+        # Блок «Главный фокус» без задачи не показывается.
+        self.assertNotContains(r, "Главный фокус")
 
     def test_recommended_task_card_rendered(self):
         from focus.models import WorkSession
@@ -392,29 +393,153 @@ class DashboardFocusSectionTest(TestCase):
         r = self.client.get(reverse("tasks:home"))
         self.assertContains(r, "FocusCard")
 
+    def test_active_work_record_takes_priority(self):
+        # Если работа уже идёт — фокус дня это текущая задача, а кнопка
+        # ведёт на «Продолжить работу».
+        from focus.models import TaskWorkRecord, WorkSession
 
-class DashboardTabsTest(TestCase):
-    """Переключатель в секции «Следующая задача»."""
+        session = WorkSession.objects.create(
+            user=self.user, energy=2, focus=2, available_time=2,
+        )
+        task = Task.objects.create(owner=self.user, name="InProgress",
+                                   priority=Task.Priority.LOW)
+        TaskWorkRecord.objects.create(
+            user=self.user, task=task, work_session=session,
+            started_at=timezone.now(),
+        )
+        r = self.client.get(reverse("tasks:home"))
+        self.assertEqual(r.context["focus_task"], task)
+        self.assertEqual(r.context["focus_start_label"], "Продолжить работу")
+        self.assertContains(r, "Продолжить работу")
+
+
+class TodayDashboardTest(TestCase):
+    """«Сегодня»: задачи дня, прогресс, внимание, события, журнал."""
 
     def setUp(self):
         self.user = User.objects.create_user("u", password="p")
         self.client.force_login(self.user)
+        self.today = timezone.localdate()
 
-    def test_next_task_section_has_switcher(self):
-        Task.objects.create(owner=self.user, name="Задача",
-                            priority=Task.Priority.HIGH)
+    def test_today_tasks_are_due_today_only(self):
+        due = Task.objects.create(owner=self.user, name="DueToday",
+                                  deadline=self.today)
+        Task.objects.create(owner=self.user, name="Tomorrow",
+                            deadline=self.today + datetime.timedelta(days=1))
+        Task.objects.create(owner=self.user, name="NoDeadline")
         r = self.client.get(reverse("tasks:home"))
-        self.assertContains(r, "По приоритету и дедлайну")
-        self.assertContains(r, "По фокусу и энергии")
-        self.assertContains(r, 'id="next-task-tabs"')
-        self.assertContains(r, 'id="next-priority"')
-        self.assertContains(r, 'id="next-focus"')
+        self.assertEqual(r.context["today_tasks_count"], 1)
+        self.assertEqual(r.context["today_tasks"][0], due)
+        self.assertContains(r, "DueToday")
 
-    def test_focus_panel_offers_link_without_session(self):
-        Task.objects.create(owner=self.user, name="Задача",
-                            priority=Task.Priority.HIGH)
+    def test_progress_counts_completed_today(self):
+        Task.objects.create(owner=self.user, name="Open",
+                            deadline=self.today)
+        done = Task.objects.create(owner=self.user, name="DoneToday",
+                                   deadline=self.today,
+                                   status=Task.Status.DONE,
+                                   completed_at=timezone.now())
+        Task.objects.create(owner=self.user, name="DoneYesterday",
+                            status=Task.Status.DONE,
+                            completed_at=timezone.now()
+                            - datetime.timedelta(days=1))
         r = self.client.get(reverse("tasks:home"))
-        self.assertContains(r, "Оцените свою энергию и концентрацию")
+        progress = r.context["progress"]
+        self.assertEqual(progress["done"], 1)
+        self.assertEqual(progress["total"], 2)
+        self.assertEqual(progress["percent"], 50)
+        self.assertContains(r, "1 / 2 задач")
+
+    def test_overdue_alert_shown(self):
+        Task.objects.create(owner=self.user, name="Late",
+                            deadline=self.today - datetime.timedelta(days=1))
+        r = self.client.get(reverse("tasks:home"))
+        self.assertEqual(r.context["overdue_count"], 1)
+        self.assertContains(r, "Требуют внимания")
+        self.assertContains(r, "задача просрочена")
+
+    def test_no_overdue_alert_when_clean(self):
+        r = self.client.get(reverse("tasks:home"))
+        self.assertEqual(r.context["overdue_count"], 0)
+        self.assertNotContains(r, "Требуют внимания")
+
+    def test_project_deadline_tomorrow_in_attention(self):
+        Project.objects.create(
+            owner=self.user, name="Редизайн",
+            deadline=self.today + datetime.timedelta(days=1),
+        )
+        r = self.client.get(reverse("tasks:home"))
+        texts = [item["text"] for item in r.context["attention"]]
+        self.assertTrue(any("Редизайн" in t and "завтра" in t for t in texts))
+        self.assertContains(r, "Редизайн")
+
+    def test_journal_entry_shown_or_offer(self):
+        # Без записи — мягкое предложение записать достижение.
+        r = self.client.get(reverse("tasks:home"))
+        self.assertIsNone(r.context["journal_entry"])
+        self.assertContains(r, "Записать достижение")
+
+        JournalEntry.objects.create(owner=self.user, date=self.today,
+                                    text="Сделал важное дело")
+        r = self.client.get(reverse("tasks:home"))
+        self.assertEqual(r.context["journal_entry"].text, "Сделал важное дело")
+        self.assertContains(r, "Сделал важное дело")
+
+    def test_day_summary_mentions_tasks_and_meetings(self):
+        Task.objects.create(owner=self.user, name="A",
+                            deadline=self.today)
+        poll = Poll.objects.create(
+            owner=self.user, title="Планёрка",
+            dates=[self.today.isoformat()],
+            time_from=9, time_to=10,
+        )
+        r = self.client.get(reverse("tasks:home"))
+        summary = r.context["day_summary"]
+        self.assertIn("1 задача", summary)
+        self.assertIn("1 встреча", summary)
+
+    def test_empty_day_summary(self):
+        r = self.client.get(reverse("tasks:home"))
+        self.assertIn("нет запланированных задач", r.context["day_summary"])
+
+    def test_empty_state_offers_create_task(self):
+        r = self.client.get(reverse("tasks:home"))
+        self.assertContains(r, "На сегодня задач нет")
+        self.assertContains(r, "Создать задачу")
+
+    def test_no_meetings_empty_state(self):
+        r = self.client.get(reverse("tasks:home"))
+        self.assertContains(r, "Сегодня встреч нет")
+
+    def test_events_include_poll_today(self):
+        poll = Poll.objects.create(
+            owner=self.user, title="Созвон",
+            dates=[self.today.isoformat()],
+            time_from=10, time_to=11,
+            final_slot=f"{self.today.isoformat()}T10:00",
+        )
+        r = self.client.get(reverse("tasks:home"))
+        events = r.context["events"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["title"], "Созвон")
+        self.assertIn("10:00", events[0]["label"])
+        self.assertContains(r, "Созвон")
+
+    def test_poll_other_day_not_shown(self):
+        Poll.objects.create(
+            owner=self.user, title="Завтрашний созвон",
+            dates=[(self.today + datetime.timedelta(days=1)).isoformat()],
+            time_from=10, time_to=11,
+        )
+        r = self.client.get(reverse("tasks:home"))
+        self.assertEqual(r.context["events"], [])
+        self.assertNotContains(r, "Завтрашний созвон")
+
+    def test_quick_actions_present(self):
+        r = self.client.get(reverse("tasks:home"))
+        self.assertContains(r, "+ Задача")
+        self.assertContains(r, "+ Заметка")
+        self.assertContains(r, "+ Проект")
 
 
 class WorkspaceRecurringButtonTest(TestCase):
@@ -1885,7 +2010,7 @@ class StatsPageTest(TestCase):
     def test_pages_have_descriptions(self):
         """На страницах есть подсказка для нового пользователя."""
         pages = {
-            reverse("tasks:home"): "Сводка на сегодня",
+            reverse("tasks:home"): "Сегодня",
             reverse("tasks:workspace"): "Создавайте задачи",
             reverse("tasks:stats"): "продуктивность в цифрах",
             reverse("tasks:project_list"): "Объединяйте связанные задачи",
@@ -3064,16 +3189,16 @@ class JournalTest(TestCase):
     def test_reminder_shown_when_no_entry_today(self):
         r = self.client.get(reverse("tasks:journal"))
         self.assertContains(r, "Сегодня ещё нет записи")
-        # И на главной появился баннер.
+        # И на главной появился призыв записать достижение.
         r = self.client.get(reverse("tasks:home"))
-        self.assertContains(r, "Журнал: сегодня ещё нет записи")
+        self.assertContains(r, "Что сегодня получилось?")
 
     def test_no_banner_after_entry_today(self):
         JournalEntry.objects.create(
             owner=self.user, date=self.today, text="Уже записал"
         )
         r = self.client.get(reverse("tasks:home"))
-        self.assertNotContains(r, "Журнал: сегодня ещё нет записи")
+        self.assertNotContains(r, "Что сегодня получилось?")
 
     def test_edit_and_delete_entry(self):
         entry = JournalEntry.objects.create(

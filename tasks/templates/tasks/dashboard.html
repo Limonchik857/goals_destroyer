@@ -1,121 +1,190 @@
 {% extends "tasks/base.html" %}
 {% load task_tags %}
 
-{% block title %}Главная{% endblock %}
+{% block title %}Сегодня{% endblock %}
 
 {% block content %}
 <div class="page">
-    <header class="page-head">
-        <div>
-            <h1>Главная</h1>
-            <p class="page-desc">Сводка на сегодня: сколько задач в работе, что просрочено и за что стоит взяться следующим.</p>
-        </div>
+    <header class="today-hero">
+        <h1>Сегодня</h1>
+        <p class="today-hero__greeting">{{ greeting }}, {{ user.username }}</p>
+        <p class="today-hero__date">{{ today|date:"l, d E" }}</p>
+        <p class="today-hero__summary">{{ day_summary }}</p>
     </header>
 
-    <div class="stats">
-        <a href="{% url 'tasks:workspace' %}" class="stat-card">
-            <span class="stat-card__value">{{ active_tasks }}</span>
-            <span class="stat-card__label">Активные задачи</span>
-        </a>
-        <a href="{% url 'tasks:overdue_tasks' %}" class="stat-card stat-card--danger">
-            <span class="stat-card__value">{{ overdue_tasks }}</span>
-            <span class="stat-card__label">Просроченные</span>
-        </a>
-        <a href="{% url 'tasks:project_list' %}" class="stat-card">
-            <span class="stat-card__value">{{ active_projects }}</span>
-            <span class="stat-card__label">Активные проекты</span>
-        </a>
-    </div>
+    {% if focus_task %}
+    <section class="today-focus panel">
+        <div class="panel__head">
+            <h2 class="panel__title">Главный фокус</h2>
+        </div>
+        <div class="today-focus__body">
+            <h3 class="today-focus__title">{{ focus_task.name }}</h3>
 
-    {% if journal_reminder %}
-        <a href="{% url 'tasks:journal' %}" class="journal-reminder journal-reminder--link">
-            <span class="journal-reminder__icon">✍️</span>
-            <div class="journal-reminder__body">
-                <strong>Журнал: сегодня ещё нет записи.</strong>
-                Одна строка о том, что сделано, — и сводка к ревью соберётся сама.
+            <dl class="today-focus__meta">
+                {% if focus_task.project %}
+                <div class="today-focus__row">
+                    <dt>Проект</dt>
+                    <dd>{{ focus_task.project.name }}</dd>
+                </div>
+                {% endif %}
+                <div class="today-focus__row">
+                    <dt>Длительность</dt>
+                    <dd>{{ focus_task.get_estimated_duration_display }}</dd>
+                </div>
+                <div class="today-focus__row">
+                    <dt>Приоритет</dt>
+                    <dd>{{ focus_task.get_priority_display }}</dd>
+                </div>
+                {% if focus_task.deadline %}
+                <div class="today-focus__row">
+                    <dt>Дедлайн</dt>
+                    <dd>{{ focus_task.deadline|date:"d.m.Y" }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+
+            {% if focus_reasons %}
+            <div class="today-focus__reasons">
+                <span class="today-focus__reasons-title">Почему это сейчас:</span>
+                <ul>
+                    {% for reason in focus_reasons %}
+                    <li>✓ {{ reason }}</li>
+                    {% endfor %}
+                </ul>
             </div>
-            <span class="journal-reminder__cta">Записать →</span>
-        </a>
+            {% endif %}
+
+            <div class="today-focus__actions">
+                <a href="{{ focus_start_url }}" class="btn btn--primary">{{ focus_start_label }}</a>
+                <a href="{% url 'tasks:task_detail' focus_task.pk %}" class="btn btn--ghost">Открыть задачу</a>
+            </div>
+        </div>
+    </section>
     {% endif %}
 
-    <section class="next-section">
-        <div class="notes-section__head">
-            <h2 class="notes-section__title">Следующая задача</h2>
-            <a href="{% url 'tasks:workspace' %}" class="btn btn--ghost btn--sm">Все задачи</a>
-        </div>
+    <div class="today-grid">
+        <div class="today-col">
 
-        <nav class="subtabs" id="next-task-tabs">
-            <a href="#" class="subtabs__item is-active" data-tab-panel="next-priority">По приоритету и дедлайну</a>
-            <a href="#" class="subtabs__item" data-tab-panel="next-focus">По фокусу и энергии</a>
-        </nav>
-
-        <div class="next-task-panel" id="next-priority">
-            {% if next_task %}
-                <ul class="grid">
-                    {% include "tasks/_task_card.html" with task=next_task %}
+            {% if attention %}
+            <section class="today-alerts panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">⚠️ Требуют внимания</h2>
+                </div>
+                <ul class="today-alerts__list">
+                    {% for item in attention %}
+                    <li class="today-alerts__item">
+                        <a href="{{ item.url }}">{{ item.text }} →</a>
+                    </li>
+                    {% endfor %}
                 </ul>
-            {% else %}
-                <p class="next-section__empty">Задач нет</p>
+            </section>
             {% endif %}
-        </div>
 
-        <div class="next-task-panel" id="next-focus" hidden>
-            {% if not focus_recent %}
-                <a href="{% url 'focus:assess' %}" class="next-section__empty next-section__empty--link">
-                    Оцените свою энергию и концентрацию — подберём задачу под текущее состояние →
-                </a>
-            {% elif focus_task %}
+            <section class="today-tasks panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">Сегодня · {{ today_tasks_count }}</h2>
+                    <a href="{% url 'tasks:workspace' %}" class="btn btn--ghost btn--sm">Все задачи</a>
+                </div>
+
+                {% if today_tasks %}
                 <ul class="grid">
-                    {% include "tasks/_task_card.html" with task=focus_task %}
+                    {% for task in today_tasks %}
+                        {% include "tasks/_task_card.html" with task=task %}
+                    {% endfor %}
                 </ul>
-            {% else %}
-                <p class="next-section__empty">Задач нет</p>
-            {% endif %}
-        </div>
-    </section>
+                {% else %}
+                <div class="today-empty">
+                    <p>На сегодня задач нет.</p>
+                    <p class="is-muted">Можно спокойно заняться проектами или запланировать следующую работу.</p>
+                    <a href="{% url 'tasks:task_create' %}" class="btn btn--primary btn--sm">Создать задачу</a>
+                </div>
+                {% endif %}
+            </section>
 
-    <section class="notes-section">
-        <div class="notes-section__head">
-            <h2 class="notes-section__title">Последние заметки</h2>
-            <a href="{% url 'tasks:note_list' %}" class="btn btn--ghost btn--sm">Все заметки</a>
+            <section class="today-events panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">Ближайшее</h2>
+                </div>
+                {% if events %}
+                <ul class="today-events__list">
+                    {% for event in events %}
+                    <li class="today-events__item">
+                        <div>
+                            <strong>{{ event.title }}</strong>
+                            <span class="is-muted">{{ event.label }}</span>
+                        </div>
+                        <a href="{{ event.url }}"
+                           class="btn btn--ghost btn--sm"
+                           {% if event.external %}target="_blank" rel="noopener"{% endif %}>
+                            {% if event.external %}Открыть{% else %}Посмотреть{% endif %}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="is-muted">Сегодня встреч нет.</p>
+                {% endif %}
+            </section>
         </div>
 
-        <ul class="grid grid--fill">
-            {% for note in recent_notes %}
-                <li class="gcard">
-                    <div class="gcard__top">
-                        <span class="gcard__title">{{ note.title }}</span>
-                    </div>
-                    {% if note.text %}
-                        <p class="gcard__desc">{{ note.text }}</p>
-                    {% endif %}
-                </li>
-            {% empty %}
-                <li class="empty">Пока нет заметок</li>
-            {% endfor %}
-        </ul>
-    </section>
+        <div class="today-col">
+            <section class="today-progress panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">Прогресс дня</h2>
+                </div>
+                {% if progress.total %}
+                <p class="today-progress__count">{{ progress.done }} / {{ progress.total }} задач</p>
+                <div class="today-progress__bar">
+                    <div class="today-progress__fill" style="width: {{ progress.percent }}%;"></div>
+                </div>
+                <p class="today-progress__percent">{{ progress.percent }}%</p>
+                {% else %}
+                <p class="is-muted">Сегодня ещё ничего не выполнено.</p>
+                {% endif %}
+            </section>
+
+            <section class="today-focus-session panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">⚡ Focus</h2>
+                </div>
+                {% if focus_session %}
+                <dl class="today-focus-session__meta">
+                    <div><dt>Энергия</dt><dd>{{ focus_session.get_energy_display|lower }}</dd></div>
+                    <div><dt>Фокус</dt><dd>{{ focus_session.get_focus_display|lower }}</dd></div>
+                    <div><dt>Времени</dt><dd>{{ focus_session.get_available_time_display|lower }}</dd></div>
+                </dl>
+                {% if focus_session_task %}
+                <p class="is-muted">Подходящая задача: <strong>{{ focus_session_task.name }}</strong></p>
+                {% endif %}
+                {% else %}
+                <p class="is-muted">Расскажите, сколько у вас энергии, фокуса и времени — это займёт 10 секунд.</p>
+                <a href="{% url 'focus:assess' %}" class="btn btn--primary btn--sm">Подобрать задачу</a>
+                {% endif %}
+            </section>
+
+            <section class="today-journal panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">Журнал</h2>
+                </div>
+                {% if journal_entry %}
+                <p class="today-journal__text">✓ {{ journal_entry.text }}</p>
+                {% else %}
+                <p class="is-muted">Что сегодня получилось? Запишите одну короткую вещь.</p>
+                <a href="{% url 'tasks:journal' %}" class="btn btn--ghost btn--sm">Записать достижение</a>
+                {% endif %}
+            </section>
+
+            <section class="today-actions panel">
+                <div class="panel__head">
+                    <h2 class="panel__title">Быстро</h2>
+                </div>
+                <div class="today-actions__list">
+                    <a href="{% url 'tasks:task_create' %}" class="btn btn--ghost btn--sm">+ Задача</a>
+                    <a href="{% url 'tasks:note_create' %}" class="btn btn--ghost btn--sm">+ Заметка</a>
+                    <a href="{% url 'tasks:project_create' %}" class="btn btn--ghost btn--sm">+ Проект</a>
+                </div>
+            </section>
+        </div>
+    </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    (function () {
-        var tabs = document.querySelectorAll("#next-task-tabs [data-tab-panel]");
-        if (!tabs.length) return;
-        tabs.forEach(function (tab) {
-            tab.addEventListener("click", function (e) {
-                e.preventDefault();
-                tabs.forEach(function (t) {
-                    t.classList.toggle("is-active", t === tab);
-                });
-                var target = document.getElementById(tab.dataset.tabPanel);
-                if (!target) return;
-                document.querySelectorAll(".next-task-panel").forEach(function (p) {
-                    p.hidden = p !== target;
-                });
-            });
-        });
-    })();
-</script>
 {% endblock %}
