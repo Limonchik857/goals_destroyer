@@ -2,12 +2,139 @@
 
 Проект уже настроен для продакшена: `DEBUG=False` по умолчанию, WhiteNoise для статики, обязательный `SECRET_KEY` через env.
 
+> **Важно:** Vercel НЕ подходит для Django (нет постоянного хранилища, нет серверного процесса).
+> Для бесплатного хостинга Django — используйте **PythonAnywhere** (раздел 1).
+
 ## Содержание
-1. [Необходимые переменные окружения](#переменные-окружения)
-2. [Вариант 1: Heroku](#heroku)
-3. [Вариант 2: Render](#render)
-4. [Вариант 3: DigitalOcean App Platform](#digitalocean-app-platform)
-5. [Вариант 4: VPS (Gunicorn + Nginx + PostgreSQL)](#vps-gunicorn--nginx--postgresql)
+1. [PythonAnywhere (бесплатно, GitHub + SQLite)](#pythonanywhere-бесплатно)
+2. [Необходимые переменные окружения](#переменные-окружения)
+3. [Вариант: Heroku](#heroku)
+4. [Вариант: Render](#render)
+5. [Вариант: DigitalOcean App Platform](#digitalocean-app-platform)
+6. [Вариант: VPS (Gunicorn + Nginx + PostgreSQL)](#vps-gunicorn--nginx--postgresql)
+
+---
+
+## PythonAnywhere (бесплатно)
+
+Бесплатный хостинг, специально созданный для Django. SQLite сохраняется (данные не теряются), HTTPS бесплатно, кредитная карта не нужна.
+
+### 1. Регистрация
+
+1. Зайдите на [pythonanywhere.com](https://www.pythonanywhere.com)
+2. **Sign up** → бесплатный аккаунт (вариант "Beginner")
+3. После регистрации ваш адрес: `ВАШ_ЛОГИН.pythonanywhere.com`
+
+### 2. Клонирование проекта с GitHub
+
+1. Вкладка **Consoles** → **Bash**
+2. Выполните:
+   ```bash
+   git clone https://github.com/Limonchik857/goals_destroyer.git
+   cd goals_destroyer
+   ```
+
+### 3. Виртуальное окружение
+
+```bash
+mkvirtualenv --python=python3.12 goalsenv
+pip install -r requirements.txt
+```
+(всё из папки `~/goals_destroyer`)
+
+### 4. Секретный ключ и настройки
+
+1. Сгенерируйте ключ:
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(50))"
+   ```
+2. Создайте файл `.env`:
+   ```bash
+   nano .env
+   ```
+   Вставьте (замените логин на свой):
+   ```
+   DJANGO_SECRET_KEY=<скопированный ключ>
+   DJANGO_DEBUG=False
+   DJANGO_ALLOWED_HOSTS=ВАШ_ЛОГИН.pythonanywhere.com
+   ```
+   Сохраните: `Ctrl+O`, `Enter`, затем `Ctrl+X`.
+
+   *`settings.py` сам загружает `.env` из корня проекта через `python-dotenv` — отдельная настройка не нужна.*
+
+### 5. Миграции и суперпользователь
+
+```bash
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py createsuperuser
+```
+
+### 6. Создание веб-приложения
+
+1. Вкладка **Web** → **Add a new web app**
+2. Next → **Manual configuration** → **Python 3.12** → Next
+3. В разделе **Virtualenv**: введите путь `/home/ВАШ_ЛОГИН/.virtualenvs/goalsenv`
+4. В разделе **Code** → **WSGI configuration file**: нажмите на ссылку и замените содержимое файла `/var/www/ВАШ_ЛОГИН_pythonanywhere_com_wsgi.py` на:
+
+   ```python
+   import os
+   import sys
+
+   # Путь к проекту
+   project_home = '/home/ВАШ_ЛОГИН/goals_destroyer'
+   if project_home not in sys.path:
+       sys.path.insert(0, project_home)
+
+   os.environ['DJANGO_SETTINGS_MODULE'] = 'taskmanager.settings'
+
+   from django.core.wsgi import get_wsgi_application
+   application = get_wsgi_application()
+   ```
+
+5. Нажмите **Save** → вернитесь на страницу Web → нажмите **Reload**
+
+### 7. Готово!
+
+Откройте `https://ВАШ_ЛОГИН.pythonanywhere.com` — сайт работает. Админка: `.../admin/`.
+
+### 8. Обновление сайта после изменений в коде
+
+Локально (у себя на компьютере):
+```bash
+git add -A
+git commit -m "описание изменений"
+git push origin main
+```
+
+На PythonAnywhere (вкладка **Consoles** → **Bash**):
+```bash
+cd ~/goals_destroyer
+git pull
+pip install -r requirements.txt    # если добавили зависимости
+python manage.py migrate            # если появились миграции
+python manage.py collectstatic --noinput
+```
+Затем вкладка **Web** → **Reload**.
+
+### 9. Ограничения бесплатного тарифа
+
+| Что | Ограничение |
+|---|---|
+| Адрес | `ВАШ_ЛОГИН.pythonanywhere.com` (свой домен — платно) |
+| Диск | 512 МБ (проект с SQLite легко укладывается) |
+| CPU | ~100 сек/день веб-запросов (достаточно для личного использования) |
+| Веб-приложений | 1 |
+| Фоновые задачи | нет (на free тарифе) |
+
+### 10. Возможные проблемы
+
+| Проблема | Решение |
+|---|---|
+| `ModuleNotFoundError: dotenv` | `pip install python-dotenv` в виртуальном окружении |
+| Ошибка 500 | Откройте **Web** → **Error log** — там будет причина |
+| Статика не грузится | Убедитесь, что `whitenoise` в `MIDDLEWARE` и выполнен `collectstatic` |
+| БД не находится | Проверьте, что `migrate` выполнен из папки `~/goals_destroyer` |
 
 ---
 
